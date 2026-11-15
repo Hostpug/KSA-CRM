@@ -247,8 +247,8 @@ router.get('/', async (req, res) => {
   }
   const category = String(req.query.category || '').trim().slice(0, 40);
   if (category) { where.push('g.category = ?'); params.push(category); }
-  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
-  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const limit = Math.min(Math.max(Math.floor(Number(req.query.limit)) || 50, 1), 200);
+  const offset = Math.min(Math.max(Math.floor(Number(req.query.offset)) || 0, 0), 1000000);
   const clause = where.length ? ` WHERE ${where.join(' AND ')}` : '';
   const order = ['active', 'overdue', 'mine'].includes(view)
     ? 'ORDER BY g.due_date IS NULL, g.due_date, g.updated_at DESC'

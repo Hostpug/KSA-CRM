@@ -153,8 +153,8 @@ router.get('/', async (req, res) => {
     where.push('(c.name LIKE ? OR n.type_code LIKE ? OR n.ref_no LIKE ? OR n.subject LIKE ? OR n.period LIKE ? OR n.tax_id LIKE ? OR a.name LIKE ? OR n.officer_name LIKE ? OR n.officer_location LIKE ?)');
     params.push(like, like, like, like, like, like, like, like, like);
   }
-  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
-  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const limit = Math.min(Math.max(Math.floor(Number(req.query.limit)) || 50, 1), 200);
+  const offset = Math.min(Math.max(Math.floor(Number(req.query.offset)) || 0, 0), 1000000);
   const clause = ` WHERE ${where.join(' AND ')}`;
   const order = view === 'closed' ? 'n.closed_on DESC, n.id DESC' : 'n.stage = 8, n.next_due IS NULL, n.next_due, n.id DESC';
   const [rows, total] = await Promise.all([

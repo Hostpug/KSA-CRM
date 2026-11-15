@@ -67,8 +67,8 @@ router.get('/', async (req, res) => {
   if (req.query.mine === '1') { where.push('c.assigned_to = ?'); params.push(req.user.id); }
   if (TYPES.includes(req.query.type)) { where.push('c.type = ?'); params.push(req.query.type); }
 
-  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
-  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const limit = Math.min(Math.max(Math.floor(Number(req.query.limit)) || 50, 1), 200);
+  const offset = Math.min(Math.max(Math.floor(Number(req.query.offset)) || 0, 0), 1000000);
   const clause = where.length ? ` WHERE ${where.join(' AND ')}` : '';
   const [rows, total] = await Promise.all([
     db.q(`${SELECT}${clause} ORDER BY c.name LIMIT ? OFFSET ?`, [...params, limit, offset]),

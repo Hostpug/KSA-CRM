@@ -155,6 +155,7 @@ router.post('/', async (req, res) => {
   const sec = secretsFrom(req.body);
   if (sec.error) Object.assign(errors, sec.error);
   if (!sec.password) errors.password = 'Enter the password.';
+  if (data.url && !/^https?:\/\/[^\s]+$/i.test(data.url)) errors.url = 'Enter a web address starting with https://';
   if (!ok || Object.keys(errors).length) return reject(res, errors);
   if (!(await canAccessClient(req.user, data.client_id))) return reject(res, { client_id: 'You do not have access to this client.' });
   const r = await db.q(
@@ -175,6 +176,7 @@ router.put('/:id', async (req, res) => {
   const { data, errors, ok } = check(req.body, SPEC);
   const sec = secretsFrom(req.body);
   if (sec.error) Object.assign(errors, sec.error);
+  if (data.url && !/^https?:\/\/[^\s]+$/i.test(data.url)) errors.url = 'Enter a web address starting with https://';
   if (!ok || Object.keys(errors).length) return reject(res, errors);
   if (data.client_id !== before.client_id && !(await canAccessClient(req.user, data.client_id))) return reject(res, { client_id: 'You do not have access to this client.' });
   const sets = ['client_id = ?', 'portal = ?', 'label = ?', 'username = ?', 'reg_mobile = ?', 'reg_email = ?', 'url = ?', 'changed_on = ?', 'updated_by = ?', 'revision = revision + 1'];

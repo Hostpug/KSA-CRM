@@ -76,7 +76,7 @@ function createApp() {
     if (LOGIN_PAGES.has(p)) {
       if (!req.user) return next();
       const n = String(req.query.next || '/');
-      return res.redirect(302, n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/login') ? n : '/');
+      return res.redirect(302, /^\/(?![\/\\])[^\s\\]*$/.test(n) && !n.startsWith('/login') ? n : '/');
     }
     if (!req.user) {
       const back = req.originalUrl === '/' ? '' : `?next=${encodeURIComponent(req.originalUrl)}`;

@@ -114,7 +114,8 @@ import BrandMark from '../components/BrandMark.astro';
 
   function safeNext() {
     const n = new URLSearchParams(location.search).get('next') || '/';
-    return n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/login') ? n : '/';
+    // Same-site paths only: blocks "//evil.com" and "/\evil.com" (browsers treat both as another site).
+    return /^\/(?![\/\\])[^\s\\]*$/.test(n) && !n.startsWith('/login') ? n : '/';
   }
 
   form.addEventListener('submit', async (e) => {

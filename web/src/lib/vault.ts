@@ -127,7 +127,7 @@ export function rowsHTML(items: VItem[], { showClient = true, canLog = false } =
             <button type="button" class="btn ghost icon" data-copy-pw="${v.id}" aria-label="Copy password" title="Copy password">${icon('copy')}</button></span>
         </div>
         <div class="vmeta">
-          ${v.login_url ? `<a href="${esc(v.login_url)}" target="_blank" rel="noopener noreferrer">Open portal ↗</a>` : ''}
+          ${/^https?:\/\//i.test(v.login_url || '') ? `<a href="${esc(v.login_url)}" target="_blank" rel="noopener noreferrer">Open portal ↗</a>` : ''}
           ${ageNote(v.changed_on)}
           ${v.reg_mobile ? `<span>Regd. mobile ${esc(v.reg_mobile)}</span>` : ''}
           ${v.reg_email ? `<span>${esc(v.reg_email)}</span>` : ''}

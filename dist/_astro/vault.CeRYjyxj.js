@@ -11,7 +11,7 @@ import{m as H,b as y,r as U,n as I,p as w,i as m,v as q,e as r,l as X,o as _,A a
             <button type="button" class="btn ghost icon" data-copy-pw="${n.id}" aria-label="Copy password" title="Copy password">${m("copy")}</button></span>
         </div>
         <div class="vmeta">
-          ${n.login_url?`<a href="${r(n.login_url)}" target="_blank" rel="noopener noreferrer">Open portal ↗</a>`:""}
+          ${/^https?:\/\//i.test(n.login_url||"")?`<a href="${r(n.login_url)}" target="_blank" rel="noopener noreferrer">Open portal ↗</a>`:""}
           ${ie(n.changed_on)}
           ${n.reg_mobile?`<span>Regd. mobile ${r(n.reg_mobile)}</span>`:""}
           ${n.reg_email?`<span>${r(n.reg_email)}</span>`:""}
