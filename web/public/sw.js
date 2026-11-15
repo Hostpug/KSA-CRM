@@ -2,7 +2,7 @@
 // - Hashed assets (/_astro/*) and icons: cache-first (they never change).
 // - Pages: network-first, falling back to the cached copy, then the offline page.
 // - /api/*: never cached (client data stays on the server only).
-const VERSION = 'ksa-v1';
+const VERSION = 'ksa-v2';
 const SHELL = ['/offline.html', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -37,7 +37,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(url.pathname, copy)); }
+          if (res.ok && !res.redirected) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(url.pathname, copy)); }
           return res;
         })
         .catch(() => caches.match(url.pathname).then((hit) => hit || caches.match('/offline.html')))

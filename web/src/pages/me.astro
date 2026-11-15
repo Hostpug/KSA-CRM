@@ -43,7 +43,7 @@ import Icon from '../components/Icon.astro';
           <li data-show="owner admin" hidden><a class="list-item" href="/team"><Icon name="team" /><span class="main-col t">Team</span></a></li>
           <li data-show="owner admin" hidden><a class="list-item" href="/activity"><Icon name="activity" /><span class="main-col t">Activity log</span></a></li>
           <li data-show="owner" hidden><a class="list-item" href="/settings"><Icon name="settings" /><span class="main-col t">Settings</span></a></li>
-          <li><button class="list-item signout" type="button" id="signOut"><Icon name="logout" /><span class="main-col t">Sign out</span></button></li>
+          <li><button class="list-item signout" type="button" id="signOut" data-signout><Icon name="logout" /><span class="main-col t">Sign out</span></button></li>
         </ul>
       </section>
     </div>
@@ -154,11 +154,6 @@ import Icon from '../components/Icon.astro';
     toast('Details saved');
   });
 
-  document.getElementById('signOut')!.addEventListener('click', async () => {
-    try { await api('/auth/logout', { method: 'POST' }); } catch { /* signed out anyway */ }
-    clearCachedUser();
-    location.replace('/login');
-  });
 
   ready.then(async (me) => {
     if (forced || me.user.mustChangePassword) {

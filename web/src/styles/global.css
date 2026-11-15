@@ -133,7 +133,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .nav svg { width: 19px; height: 19px; flex: none; opacity: .9; }
 .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7f9ab3; padding: 16px 12px 6px; }
-.sidebar-foot { margin-top: auto; }
+.sidebar-foot { margin-top: auto; display: flex; gap: 6px; align-items: stretch; }
+.sidebar-foot .user-chip { flex: 1; min-width: 0; }
+.signout-btn {
+  flex: none; width: 44px; border: 0; border-radius: 12px; display: grid; place-items: center; cursor: pointer;
+  background: rgb(255 255 255 / .06); color: #cddbe8; transition: background .2s var(--ease), color .2s var(--ease);
+}
+.signout-btn:hover { background: rgb(230 80 70 / .22); color: #fff; }
+.signout-btn svg { width: 18px; height: 18px; }
 .user-chip {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border-radius: 12px;
   background: rgb(255 255 255 / .06); border: 0; color: #e8f0f7; cursor: pointer; text-align: left;
@@ -504,10 +511,27 @@ table.items tr.total td { border-bottom: 0; font-weight: 750; font-size: 16px; }
 .suggest-opt:hover, .suggest-opt.on { background: var(--surface-2); }
 .suggest-opt mark { background: none; color: var(--accent-text); font-weight: 700; }
 
-/* Profile shortcut in the phone top bar (the tab bar holds Notices instead of Me). */
-.mobile-me { display: inline-flex; margin-left: 4px; border-radius: 50%; }
-.mobile-me .avatar { width: 34px; height: 34px; font-size: 12.5px; }
-.mobile-me[aria-current='page'] .avatar { box-shadow: 0 0 0 2px var(--accent); }
+/* Account menu in the phone top bar: profile and sign out. */
+.mobile-me { position: relative; margin-left: 4px; }
+.me-btn { border: 0; background: none; padding: 0; border-radius: 50%; cursor: pointer; display: block; }
+.me-btn .avatar { width: 34px; height: 34px; font-size: 12.5px; }
+.me-btn[aria-expanded='true'] .avatar { box-shadow: 0 0 0 2px var(--accent); }
+.me-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 230px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg);
+  animation: modal-in .18s var(--ease-out); transform-origin: top right;
+}
+.me-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.me-head b { display: block; font-size: 14px; }
+.me-head span { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+.me-menu a, .me-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 10px;
+  background: none; color: var(--text); font: inherit; font-size: 14.5px; text-decoration: none; cursor: pointer; text-align: left;
+}
+.me-menu a:hover, .me-menu button:hover { background: var(--surface-2); }
+.me-menu .danger { color: var(--danger); }
+.me-menu .danger:hover { background: var(--danger-soft); }
+.me-menu svg { width: 18px; height: 18px; }
 @media (min-width: 960px) { .mobile-me { display: none; } }
 
 /* Notice form tag (e.g. ASMT-10) and due-date tones, used across notice pages. */

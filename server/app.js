@@ -59,11 +59,36 @@ function createApp() {
     res.setHeader('Service-Worker-Allowed', '/');
     res.sendFile(path.join(dist, 'sw.js'));
   });
+  // Pages need a signed-in user. Checking here (not in the browser) means a signed-out visitor
+  // goes straight to the sign-in page instead of seeing the dashboard flash first.
+  const OPEN_PAGES = new Set(['/offline', '/offline.html', '/404', '/404.html']);
+  const LOGIN_PAGES = new Set(['/login', '/login.html']);
+  app.use(async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const p = req.path;
+    // Files (icons, manifest, logo, robots…) are public; only pages are guarded.
+    if (/\.[a-z0-9]+$/i.test(p) && !p.endsWith('.html')) return next();
+    if (OPEN_PAGES.has(p)) return next();
+    try {
+      await new Promise((resolve, reject) => auth.loadSession(req, res, (err) => (err ? reject(err) : resolve())));
+    } catch (err) { return next(err); }
+    res.setHeader('Cache-Control', 'no-store');
+    if (LOGIN_PAGES.has(p)) {
+      if (!req.user) return next();
+      const n = String(req.query.next || '/');
+      return res.redirect(302, n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/login') ? n : '/');
+    }
+    if (!req.user) {
+      const back = req.originalUrl === '/' ? '' : `?next=${encodeURIComponent(req.originalUrl)}`;
+      return res.redirect(302, `/login${back}`);
+    }
+    next();
+  });
   app.use(express.static(dist, {
     extensions: ['html'],
     index: 'index.html',
     setHeaders(res, file) {
-      res.setHeader('Cache-Control', file.endsWith('.html') ? 'no-cache' : 'public, max-age=86400');
+      res.setHeader('Cache-Control', file.endsWith('.html') ? 'no-store' : 'public, max-age=86400');
     },
   }));
   app.use((req, res) => {

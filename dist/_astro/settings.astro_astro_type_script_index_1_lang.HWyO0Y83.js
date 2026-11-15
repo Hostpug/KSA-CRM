@@ -1,4 +1,4 @@
-import{r as f}from"./Layout.astro_astro_type_script_index_0_lang.BXmJ9tg2.js";import{p as g,b as p,t as h,e as l,i as u}from"./ui.DG7dXUww.js";let a=[],y=!1;const r=document.getElementById("cedList"),$=document.getElementById("cedState"),v=document.getElementById("cedSave"),i=(t=!0)=>{y=t,$.textContent=t?"Unsaved changes":""};function d(t=-1){r.innerHTML=a.map((e,s)=>`
+import{r as f}from"./Layout.astro_astro_type_script_index_0_lang.XMzB88AG.js";import{p as g,b as p,t as h,e as l,i as u}from"./ui.DG7dXUww.js";let a=[],y=!1;const r=document.getElementById("cedList"),$=document.getElementById("cedState"),v=document.getElementById("cedSave"),i=(t=!0)=>{y=t,$.textContent=t?"Unsaved changes":""};function d(t=-1){r.innerHTML=a.map((e,s)=>`
       <div class="ced" data-c="${s}">
         <div class="ced-head">
           <input class="ced-name" value="${l(e.name)}" maxlength="40" aria-label="Category name" placeholder="Category name" />

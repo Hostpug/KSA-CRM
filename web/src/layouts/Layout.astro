@@ -61,6 +61,7 @@ const cur = (k: string) => (nav === k ? 'page' : undefined);
               <span class="avatar" data-initials>··</span>
               <span class="who"><b data-user-name>Loading…</b><span data-user-role></span></span>
             </a>
+            <button class="signout-btn" type="button" data-signout aria-label="Sign out" title="Sign out"><Icon name="logout" /></button>
           </div>
         </aside>
 
@@ -68,7 +69,14 @@ const cur = (k: string) => (nav === k ? 'page' : undefined);
           <a class="mobile-brand" href="/" aria-label="Dashboard"><BrandMark /></a>
           <div class="title">{title}</div>
           <slot name="actions" />
-          <a class="mobile-me" href="/me" aria-label="My profile" aria-current={cur('me')}><span class="avatar" data-initials>··</span></a>
+          <div class="mobile-me">
+            <button type="button" class="me-btn" id="meBtn" aria-label="Account menu" aria-haspopup="menu" aria-expanded="false" aria-controls="meMenu"><span class="avatar" data-initials>··</span></button>
+            <div class="me-menu" id="meMenu" role="menu" hidden>
+              <div class="me-head"><b data-user-name>…</b><span data-user-role></span></div>
+              <a role="menuitem" href="/me"><Icon name="user" />My profile &amp; password</a>
+              <button role="menuitem" type="button" class="danger" data-signout><Icon name="logout" />Sign out</button>
+            </div>
+          </div>
         </header>
 
         <main class="main" id="main">

@@ -64,6 +64,24 @@ function chrome() {
     onScroll();
   }
   initSheets();
+  // Sign out from anywhere (sidebar button, phone account menu, profile page).
+  document.addEventListener('click', async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-signout]');
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    try { await api('/auth/logout', { method: 'POST' }); } catch { /* signed out anyway */ }
+    clearCachedUser();
+    location.replace('/login');
+  });
+  // Phone account menu
+  const meBtn = document.getElementById('meBtn');
+  const meMenu = document.getElementById('meMenu');
+  if (meBtn && meMenu) {
+    const toggle = (open: boolean) => { meMenu.hidden = !open; meBtn.setAttribute('aria-expanded', String(open)); };
+    meBtn.addEventListener('click', (e) => { e.stopPropagation(); toggle(meMenu.hidden); });
+    document.addEventListener('click', (e) => { if (!meMenu.hidden && !meMenu.contains(e.target as Node)) toggle(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !meMenu.hidden) { toggle(false); meBtn.focus(); } });
+  }
   // A field's error message goes away as soon as the user starts fixing it.
   document.addEventListener('input', (e) => {
     const f = (e.target as HTMLElement).closest?.('.field.invalid');
