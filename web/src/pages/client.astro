@@ -1,0 +1,260 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import ClientForm from '../components/ClientForm.astro';
+import VaultSheets from '../components/VaultSheets.astro';
+---
+<Layout title="Client" nav="clients">
+  <a slot="actions" class="btn ghost icon mobile-only" href="/clients" aria-label="Back to clients"><Icon name="back" /></a>
+
+  <div id="loading" class="stack">
+    <div class="card card-pad"><div class="skel line"></div><div class="skel line"></div><div class="skel line"></div></div>
+  </div>
+
+  <div id="view" hidden>
+    <a class="back desktop-only small" href="/clients"><Icon name="back" />All clients</a>
+    <div class="hero card card-pad reveal">
+      <span class="avatar lg" id="cAvatar"></span>
+      <div class="hero-main">
+        <h1 id="cName"></h1>
+        <div class="row small muted" id="cMeta"></div>
+      </div>
+      <button class="btn" id="edit" type="button"><Icon name="edit" />Edit</button>
+    </div>
+
+    <div class="quick row reveal" id="quick"></div>
+
+    <div class="grid two">
+      <section class="card reveal">
+        <div class="card-head"><h2>Details</h2></div>
+        <div class="card-body"><dl class="details" id="details"></dl></div>
+      </section>
+      <section class="card reveal">
+        <div class="card-head"><h2>History</h2></div>
+        <div class="card-body"><ul class="timeline" id="history"></ul></div>
+      </section>
+    </div>
+
+    <section class="card reveal eng-section">
+      <div class="card-head">
+        <h2>Engagements</h2>
+        <div class="row">
+          <a class="btn" id="newLeadHere" href="/new?type=lead"><Icon name="plus" />Lead</a>
+          <a class="btn primary" id="newTaskHere" href="/new?type=task"><Icon name="plus" />Task</a>
+        </div>
+      </div>
+      <ul class="list" id="engs"></ul>
+    </section>
+
+    <section class="card reveal eng-section">
+      <div class="card-head">
+        <h2>Portal logins <span class="badge" id="vLockChip">Locked</span></h2>
+        <div class="row">
+          <a class="btn ghost" href="/vault">Vault</a>
+          <button class="btn" type="button" id="vAddHere"><Icon name="plus" />Login</button>
+        </div>
+      </div>
+      <ul class="vlist" id="vHere"></ul>
+    </section>
+
+    <section class="card reveal eng-section">
+      <div class="card-head">
+        <h2>Notices</h2>
+        <div class="row">
+          <a class="btn" id="newGstHere" href="/notice-new?tax=gst"><Icon name="plus" />GST</a>
+          <a class="btn" id="newItHere" href="/notice-new?tax=it"><Icon name="plus" />Income tax</a>
+        </div>
+      </div>
+      <ul class="list" id="ntcs"></ul>
+    </section>
+  </div>
+
+  <ClientForm />
+  <VaultSheets />
+</Layout>
+
+<style>
+  .back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; color: var(--muted); }
+  .back :global(svg) { width: 16px; height: 16px; }
+  .hero { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .hero-main { flex: 1; min-width: 200px; }
+  .hero h1 { margin-bottom: 6px; overflow-wrap: anywhere; }
+  .quick { margin: 14px 0 16px; }
+  .quick .btn { min-height: 38px; font-size: 14px; }
+  .grid.two > :nth-child(2) { animation-delay: 80ms; }
+  .eng-section { margin-top: 16px; }
+  .eng-section .card-head { margin-bottom: 8px; }
+  .eng-section .card-head { flex-wrap: wrap; gap: 10px; }
+  .eng-section .card-head h2 { display: flex; align-items: center; gap: 8px; }
+  #vHere { padding: 4px 16px 16px; }
+  @media (min-width: 720px) { #vHere { padding: 4px 20px 20px; } }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, ago, dateTime, openSheet, closeSheet, readForm, fillForm, submitting, toast, toastError, copyText, CLIENT_TYPES } from '../lib/ui';
+  import { loadEmployeeOptions, wireClientForm } from '../lib/clientForm';
+  import { stageBadge } from '../lib/stages';
+  import { noticeBadge, dueInfo } from '../lib/notices';
+  import { initVault, rowsHTML, staggerRows, onLockChange, type VItem } from '../lib/vault';
+  import { icon, reveal, emptyState, dateOnly } from '../lib/ui';
+
+  const id = new URLSearchParams(location.search).get('id');
+  const sheet = document.getElementById('clientSheet') as HTMLDialogElement;
+  const form = document.getElementById('clientForm') as HTMLFormElement;
+  wireClientForm(form);
+  form.querySelector('[data-edit-only]')!.removeAttribute('hidden');
+  (document.getElementById('clientSheetTitle') as HTMLElement).textContent = 'Edit client';
+  let client: any = null;
+
+  function render(c: any, history: any[]) {
+    client = c;
+    (document.getElementById('newLeadHere') as HTMLAnchorElement).href = `/new?type=lead&client=${c.id}`;
+    (document.getElementById('newTaskHere') as HTMLAnchorElement).href = `/new?type=task&client=${c.id}`;
+    (document.getElementById('newGstHere') as HTMLAnchorElement).href = `/notice-new?tax=gst&client=${c.id}`;
+    (document.getElementById('newItHere') as HTMLAnchorElement).href = `/notice-new?tax=it&client=${c.id}`;
+    document.title = `${c.name} · KSA CRM`;
+    (document.querySelector('.topbar .title') as HTMLElement).textContent = c.name;
+    (document.getElementById('cAvatar') as HTMLElement).textContent = c.name.slice(0, 1).toUpperCase();
+    (document.getElementById('cName') as HTMLElement).textContent = c.name;
+    (document.getElementById('cMeta') as HTMLElement).innerHTML = [
+      `<span class="badge blue">${esc(CLIENT_TYPES[c.type] || c.type)}</span>`,
+      c.active ? '<span class="badge green dot">Active</span>' : '<span class="badge dot">Inactive</span>',
+      c.assigned_name ? `<span>Handled by <b>${esc(c.assigned_name)}</b></span>` : '<span>Not assigned</span>',
+    ].join('');
+
+    const quick: string[] = [];
+    if (c.mobile) quick.push(`<a class="btn" href="tel:${esc(c.mobile.replace(/[^+0-9]/g, ''))}">Call</a>`);
+    if (c.mobile) quick.push(`<a class="btn" href="https://wa.me/${esc(waNumber(c.mobile))}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`);
+    if (c.email) quick.push(`<a class="btn" href="mailto:${esc(c.email)}">Email</a>`);
+    if (c.gstin) quick.push(`<button class="btn" type="button" data-copy="${esc(c.gstin)}">Copy GSTIN</button>`);
+    if (c.pan) quick.push(`<button class="btn" type="button" data-copy="${esc(c.pan)}">Copy PAN</button>`);
+    (document.getElementById('quick') as HTMLElement).innerHTML = quick.join('');
+
+    const addr = [c.address, [c.city, c.state].filter(Boolean).join(', '), c.pincode].filter(Boolean).join('\n');
+    const rows: [string, string, boolean?][] = [
+      ['PAN', c.pan ? `<span class="mono">${esc(c.pan)}</span>` : '—'],
+      ['GSTIN', c.gstin ? `<span class="mono">${esc(c.gstin)}</span>` : '—'],
+      ['Contact person', esc(c.contact_person || '—')],
+      ['Mobile', esc(c.mobile || '—')],
+      ['Email', c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—'],
+      ['Address', esc(addr || '—'), true],
+      ['Notes', esc(c.notes || '—'), true],
+      ['Added', `${esc(dateTime(c.created_at))}${c.created_by_name ? ` by ${esc(c.created_by_name)}` : ''}`],
+      ['Last updated', esc(dateTime(c.updated_at))],
+    ];
+    (document.getElementById('details') as HTMLElement).innerHTML =
+      rows.map(([k, v, wide]) => `<div class="${wide ? 'wide' : ''}"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+
+    (document.getElementById('history') as HTMLElement).innerHTML = history.length
+      ? history.map((h) => `<li><div>${esc(h.summary || h.action)}</div><div class="when">${esc(h.actor_name || 'System')} · ${esc(ago(h.at))}</div></li>`).join('')
+      : '<li class="muted">No changes recorded.</li>';
+  }
+
+  function waNumber(m: string) {
+    const d = m.replace(/\D/g, '');
+    return d.length === 10 ? `91${d}` : d;
+  }
+
+  document.getElementById('quick')!.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest('[data-copy]') as HTMLElement | null;
+    if (b) copyText(b.dataset.copy!);
+  });
+
+  async function load() {
+    if (!id || !/^\d+$/.test(id)) { location.replace('/clients'); return; }
+    try {
+      const d = await api(`/clients/${id}`);
+      render(d.item, d.history);
+      document.getElementById('loading')!.hidden = true;
+      document.getElementById('view')!.hidden = false;
+    } catch (err: any) {
+      toastError(err);
+      if (err.status === 404) setTimeout(() => location.replace('/clients'), 1200);
+    }
+  }
+
+  document.getElementById('edit')!.addEventListener('click', async () => {
+    form.reset();
+    await loadEmployeeOptions(form);
+    fillForm(form, { ...client, assigned_to: client.assigned_to ?? '' });
+    openSheet(sheet);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = { ...readForm(form), revision: client.revision };
+    const res = await submitting(form, document.getElementById('clientSave') as HTMLButtonElement, () => api(`/clients/${id}`, { method: 'PUT', body }));
+    if (!res) return;
+    closeSheet(sheet);
+    toast('Client saved');
+    load();
+  });
+
+  // ---------- engagements for this client ----------
+
+  async function loadEngagements() {
+    const ul = document.getElementById('engs')!;
+    try {
+      const d = await api(`/engagements?client_id=${id}&limit=100`);
+      ul.innerHTML = d.items.length
+        ? d.items.map((e: any) => `
+            <li><a class="list-item" href="/engagement?id=${e.id}">
+              <span class="main-col"><span class="t">${esc(e.service)}</span>
+                <span class="s">${esc([e.so_no || e.estimate_no, e.assigned_name, e.due_date ? `due ${dateOnly(e.due_date)}` : ''].filter(Boolean).join(' · ') || ago(e.updated_at))}</span></span>
+              ${stageBadge(e.stage)}
+              ${icon('chevron', 'chev')}
+            </a></li>`).join('')
+        : `<li>${emptyState('briefcase', 'No engagements yet', 'Add a lead or a task for this client.')}</li>`;
+      reveal(ul);
+    } catch (err) { toastError(err); }
+  }
+
+  // ---------- notices for this client ----------
+  async function loadNotices() {
+    const ul = document.getElementById('ntcs')!;
+    try {
+      const [g, t] = await Promise.all(['gst', 'it'].map((tax) => api(`/notices?tax=${tax}&client_id=${id}&view=all&limit=100`)));
+      const items = [...g.items, ...t.items].sort((a: any, b: any) => (a.stage === 8 ? 1 : 0) - (b.stage === 8 ? 1 : 0) || String(a.next_due || '9').localeCompare(String(b.next_due || '9')));
+      ul.innerHTML = items.length
+        ? items.map((n: any) => {
+          const d = dueInfo(n);
+          return `<li><a class="list-item" href="/notice?id=${n.id}">
+              <span class="main-col"><span class="t"><span class="form-tag">${esc(n.type_code)}</span>${esc(n.subject)}</span>
+                <span class="s">${esc([n.tax === 'gst' ? 'GST' : 'Income tax', n.period].filter(Boolean).join(' · '))}${n.next_due && n.stage !== 8 ? ` · <span class="due ${d.tone}">${esc(d.text)}</span>` : ''}</span></span>
+              ${noticeBadge(n.stage)}
+              ${icon('chevron', 'chev')}
+            </a></li>`;
+        }).join('')
+        : `<li>${emptyState('file', 'No notices', 'Record a GST or income tax notice when one arrives.')}</li>`;
+      reveal(ul);
+    } catch (err) { toastError(err); }
+  }
+
+  // ---------- portal logins for this client ----------
+  let vItems: VItem[] = [];
+  const vHere = document.getElementById('vHere')!;
+  const vault = initVault(() => loadLogins(), { fixedClient: () => (client ? { id: client.id, name: client.name } : null) });
+  vault.bind(vHere, () => vItems);
+  document.getElementById('vAddHere')!.addEventListener('click', () => vault.open(null));
+  onLockChange((open) => {
+    const chip = document.getElementById('vLockChip')!;
+    chip.textContent = open ? 'Unlocked' : 'Locked';
+    chip.className = `badge ${open ? 'green dot' : ''}`;
+  });
+  async function loadLogins() {
+    try {
+      const d = await api(`/vault?client_id=${id}`);
+      vItems = d.items;
+      vHere.innerHTML = vItems.length ? rowsHTML(vItems, { showClient: false, canLog: ['owner', 'admin'].includes(document.body.dataset.role || '') })
+        : `<li>${emptyState('lock', 'No portal logins saved', 'Add the GST, income tax and other portal logins for this client.')}</li>`;
+      staggerRows(vHere);
+    } catch (err: any) {
+      vHere.innerHTML = err?.status === 503 ? `<li>${emptyState('lock', 'Vault not set up', 'The administrator needs to add the vault key on the server.')}</li>` : '';
+      if (err?.status !== 503) toastError(err);
+    }
+  }
+
+  ready.then(async () => { await load(); loadEngagements(); loadNotices(); loadLogins(); });
+</script>

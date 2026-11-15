@@ -1,0 +1,46 @@
+---
+// Add / edit client sheet. The page script fills and submits it.
+import Icon from './Icon.astro';
+const types = [
+  ['individual', 'Individual'], ['proprietorship', 'Proprietorship'], ['partnership', 'Partnership firm'], ['llp', 'LLP'],
+  ['company', 'Company'], ['trust', 'Trust / Society'], ['huf', 'HUF'], ['other', 'Other'],
+];
+const states = ['Andaman and Nicobar Islands','Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chandigarh','Chhattisgarh','Dadra and Nagar Haveli and Daman and Diu','Delhi','Goa','Gujarat','Haryana','Himachal Pradesh','Jammu and Kashmir','Jharkhand','Karnataka','Kerala','Ladakh','Lakshadweep','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Puducherry','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal'];
+---
+<dialog class="sheet" id="clientSheet" aria-labelledby="clientSheetTitle">
+  <form id="clientForm" novalidate>
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="clientSheetTitle">Add client</h2>
+      <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-grid cols-2">
+        <label class="field span-2"><span>Client name <em>*</em></span><input name="name" maxlength="160" required autocomplete="off" /></label>
+        <label class="field"><span>Type <em>*</em></span>
+          <select name="type">{types.map(([v, l]) => <option value={v}>{l}</option>)}</select>
+        </label>
+        <label class="field"><span>Handled by</span><select name="assigned_to" data-employees><option value="">— Not assigned —</option></select></label>
+        <label class="field"><span>PAN</span><input name="pan" maxlength="10" autocapitalize="characters" class="mono" placeholder="ABCDE1234F" autocomplete="off" /></label>
+        <label class="field"><span>GSTIN</span><input name="gstin" maxlength="15" autocapitalize="characters" class="mono" placeholder="33ABCDE1234F1Z5" autocomplete="off" /><span class="hint" data-gst-hint></span></label>
+
+        <div class="form-section span-2">Contact</div>
+        <label class="field"><span>Contact person</span><input name="contact_person" maxlength="120" /></label>
+        <label class="field"><span>Mobile</span><input name="mobile" type="tel" inputmode="tel" maxlength="20" /></label>
+        <label class="field span-2"><span>Email</span><input name="email" type="email" inputmode="email" maxlength="190" /></label>
+        <label class="field span-2"><span>Address</span><textarea name="address" maxlength="500" rows="2"></textarea></label>
+        <label class="field"><span>City</span><input name="city" maxlength="80" /></label>
+        <label class="field"><span>State</span>
+          <select name="state"><option value="">—</option>{states.map((s) => <option value={s}>{s}</option>)}</select>
+        </label>
+        <label class="field"><span>PIN code</span><input name="pincode" inputmode="numeric" maxlength="6" /></label>
+        <label class="field span-2"><span>Notes</span><textarea name="notes" maxlength="4000" rows="3"></textarea></label>
+        <label class="check span-2" data-edit-only hidden><input type="checkbox" name="active" /> Active client</label>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="clientSave">Save client</button>
+    </div>
+  </form>
+</dialog>

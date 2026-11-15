@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Offline" bare>
+  <main class="nf">
+    <div class="wave" aria-hidden="true"></div>
+    <h1>You are offline</h1>
+    <p class="muted">Check the internet connection. The CRM will load again once you are back online.</p>
+    <a class="btn primary" href="/">Try again</a>
+  </main>
+</Layout>
+
+<style>
+  .nf { min-height: 100dvh; display: grid; place-content: center; text-align: center; gap: 12px; padding: 24px; animation: fade-up .5s var(--ease-out) both; }
+  .nf .btn { justify-self: center; margin-top: 8px; }
+  .wave { width: 64px; height: 64px; justify-self: center; border-radius: 50%; border: 3px solid var(--accent); opacity: .7; animation: ping 1.8s ease-out infinite; }
+  @keyframes ping { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.3); opacity: 0; } }
+</style>

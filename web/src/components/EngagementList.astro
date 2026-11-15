@@ -1,0 +1,170 @@
+---
+import Icon from './Icon.astro';
+interface Props { mode: 'leads' | 'work' }
+const { mode } = Astro.props;
+const tabs = mode === 'leads'
+  ? [['leads', 'Open leads'], ['closed', 'Lost / closed'], ['allleads', 'All']]
+  : [['active', 'In progress'], ['mine', 'My work'], ['overdue', 'Overdue'], ['delivered', 'Delivered'], ['work', 'All']];
+---
+<div class="eng-list" data-mode={mode}>
+  <div class="grid stats eng-stats" id="engStats">
+    {mode === 'leads' ? (
+      <>
+        <button class="card stat" type="button" data-view="leads"><span class="ic"><Icon name="sparkle" /></span><div class="k">Open leads</div><div class="v" data-sum="leads">–</div></button>
+        <a class="card stat" href="/work"><span class="ic"><Icon name="clients" /></span><div class="k">Active work</div><div class="v" data-sum="active">–</div></a>
+      </>
+    ) : (
+      <>
+        <button class="card stat" type="button" data-view="active"><span class="ic"><Icon name="activity" /></span><div class="k">In progress</div><div class="v" data-sum="active">–</div></button>
+        <button class="card stat" type="button" data-view="mine"><span class="ic"><Icon name="user" /></span><div class="k">My work</div><div class="v" data-sum="mine">–</div></button>
+        <button class="card stat danger-stat" type="button" data-view="overdue"><span class="ic"><Icon name="alert" /></span><div class="k">Overdue</div><div class="v" data-sum="overdue">–</div></button>
+        <button class="card stat" type="button" data-view="delivered"><span class="ic"><Icon name="check" /></span><div class="k">Delivered · to bill</div><div class="v" data-sum="delivered">–</div></button>
+      </>
+    )}
+  </div>
+
+  <div class="toolbar">
+    <label class="search"><Icon name="search" /><input class="input" id="engQ" type="search" placeholder="Search client, service, SO no., staff…" autocomplete="off" enterkeyhint="search" /></label>
+    <div class="segmented" id="engTabs" role="group" aria-label="View">
+      {tabs.map(([v, l], i) => <button type="button" data-value={v} aria-pressed={i === 0 ? 'true' : 'false'}>{l}</button>)}
+    </div>
+  </div>
+  <p class="muted small count" id="engCount">&nbsp;</p>
+
+  <section class="card">
+    <div class="only-wide table-wrap">
+      <table class="table">
+        <thead><tr>
+          <th>Client &amp; service</th><th>Stage</th>
+          {mode === 'leads' ? <><th>Estimate</th><th>Fee</th><th>Updated</th></> : <><th>SO no.</th><th>Assigned to</th><th>Due</th></>}
+        </tr></thead>
+        <tbody id="engRows"></tbody>
+      </table>
+    </div>
+    <ul class="list only-narrow" id="engCards"></ul>
+    <div id="engEmpty"></div>
+    <div class="more" id="engMoreWrap" hidden><button class="btn" id="engMore" type="button">Load more</button></div>
+  </section>
+
+  <a class="fab" href={mode === 'leads' ? '/new?type=lead' : '/new?type=task'} aria-label={mode === 'leads' ? 'New lead' : 'New task'}><Icon name="plus" /></a>
+</div>
+
+<style is:global>
+  .eng-stats { margin-bottom: 16px; }
+  .eng-list[data-mode='leads'] .eng-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (min-width: 720px) { .eng-list[data-mode='leads'] .eng-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  button.stat { text-align: left; font: inherit; color: inherit; cursor: pointer; }
+  .stat.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+  .danger-stat .ic { background: var(--danger-soft); color: var(--danger); }
+  .eng-list .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .eng-list .segmented { overflow-x: auto; max-width: 100%; }
+  .eng-list .segmented button { white-space: nowrap; }
+  .eng-list .count { margin: 10px 2px; }
+  .eng-list .more { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--line); }
+  .eng-card .row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 5px; }
+  .eng-card .s { white-space: normal; }
+  .cat-tag { display: inline-block; font-size: 11px; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; margin-right: 6px; vertical-align: 1px; }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, icon, ago, dateOnly, segmented, debounce, skeletonRows, emptyState, countUp, toastError } from '../lib/ui';
+  import { stageBadge, rupees } from '../lib/stages';
+
+  const root = document.querySelector('.eng-list') as HTMLElement;
+  const mode = root.dataset.mode as 'leads' | 'work';
+  const params = new URLSearchParams(location.search);
+  if (params.get('new')) location.replace(`/new?type=${params.get('new') === 'task' ? 'task' : 'lead'}`);
+  const state = { q: '', view: params.get('view') || (mode === 'leads' ? 'leads' : 'active'), offset: 0 };
+  const rows = document.getElementById('engRows')!;
+  const cards = document.getElementById('engCards')!;
+  const empty = document.getElementById('engEmpty')!;
+  const count = document.getElementById('engCount')!;
+  const moreWrap = document.getElementById('engMoreWrap')!;
+  const tabs = document.getElementById('engTabs')!;
+
+  // Pre-select the tab from ?view=
+  tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === state.view)));
+
+  const due = (e: any) => e.due_date
+    ? `<span class="${e.overdue ? 'overdue-text' : ''}">${esc(dateOnly(e.due_date))}${e.overdue ? ' · overdue' : ''}</span>` : '—';
+
+  let seq = 0;
+  async function load(append = false) {
+    const my = ++seq;
+    if (!append) { state.offset = 0; cards.innerHTML = skeletonRows(4); rows.innerHTML = ''; empty.innerHTML = ''; }
+    const qs = new URLSearchParams({ q: state.q, view: state.view, offset: String(state.offset), limit: '50' });
+    try {
+      const d = await api(`/engagements?${qs}`);
+      if (my !== seq) return;
+      const items = d.items as any[];
+      if (!append) { rows.innerHTML = ''; cards.innerHTML = ''; }
+      rows.insertAdjacentHTML('beforeend', items.map((e) => `
+        <tr data-href="/engagement?id=${e.id}">
+          <td><a href="/engagement?id=${e.id}"><b>${esc(e.display_name)}</b></a><div class="muted small">${e.category ? `<span class="cat-tag">${esc(e.category)}</span>` : ''}${esc(e.service)}</div></td>
+          <td>${stageBadge(e.stage)}</td>
+          ${mode === 'leads'
+            ? `<td class="mono">${esc(e.estimate_no || '—')}</td><td>${esc(rupees(e.fee))}</td><td class="muted">${esc(ago(e.updated_at))}</td>`
+            : `<td class="mono">${esc(e.so_no || '—')}</td><td>${esc(e.assigned_name || '—')}</td><td>${due(e)}</td>`}
+        </tr>`).join(''));
+      cards.insertAdjacentHTML('beforeend', items.map((e) => `
+        <li><a class="list-item eng-card" href="/engagement?id=${e.id}">
+          <span class="main-col">
+            <span class="t">${esc(e.display_name)}</span>
+            <span class="s">${e.category ? `<span class="cat-tag">${esc(e.category)}</span>` : ''}${esc(e.service)}</span>
+            <span class="row2">${stageBadge(e.stage)}
+              ${mode === 'leads' ? (e.fee ? `<span class="small muted">${esc(rupees(e.fee))}</span>` : '') : `${e.so_no ? `<span class="small mono muted">${esc(e.so_no)}</span>` : ''}${e.due_date ? `<span class="small">${due(e)}</span>` : ''}`}
+              ${mode === 'work' && e.assigned_name ? `<span class="small muted">· ${esc(e.assigned_name)}</span>` : ''}
+            </span>
+          </span>
+          ${icon('chevron', 'chev')}
+        </a></li>`).join(''));
+      [rows, cards].forEach((c) => Array.from(c.children).slice(-items.length || 0).forEach((el, i) => {
+        if (!items.length) return;
+        (el as HTMLElement).style.setProperty('--i', String(Math.min(i, 12)));
+        el.classList.add('reveal');
+      }));
+      state.offset += d.items.length;
+      const total = d.total;
+      count.textContent = total ? `${total.toLocaleString('en-IN')} ${mode === 'leads' ? 'lead' : 'engagement'}${total === 1 ? '' : 's'}` : '';
+      moreWrap.hidden = state.offset >= d.total;
+      if (!total) {
+        empty.innerHTML = state.q
+          ? emptyState('search', 'Nothing matches', 'Try another client name, service or SO number.')
+          : mode === 'leads'
+            ? emptyState('activity', 'No leads here', 'Tap + to add an enquiry.')
+            : emptyState('clients', 'Nothing in this view', 'Tap + to log work already received.');
+      }
+    } catch (err) { cards.innerHTML = ''; toastError(err); }
+  }
+
+  async function loadSummary() {
+    try {
+      const s = await api('/engagements/summary');
+      document.querySelectorAll<HTMLElement>('[data-sum]').forEach((el) => countUp(el, s[el.dataset.sum!] ?? 0));
+    } catch { /* cards stay as dashes */ }
+  }
+
+  function highlight() {
+    document.querySelectorAll<HTMLElement>('[data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === state.view));
+  }
+
+  rows.addEventListener('click', (e) => {
+    const tr = (e.target as HTMLElement).closest('tr[data-href]') as HTMLElement | null;
+    if (tr && !(e.target as HTMLElement).closest('a')) location.href = tr.dataset.href!;
+  });
+  const q = document.getElementById('engQ') as HTMLInputElement;
+  q.addEventListener('input', debounce(() => { state.q = q.value.trim(); load(); }, 250));
+  segmented(tabs, (v) => { state.view = v; highlight(); load(); history.replaceState(null, '', `?view=${v}`); });
+  document.querySelectorAll<HTMLElement>('[data-view]').forEach((b) => b.addEventListener('click', () => {
+    (tabs.querySelector(`button[data-value="${b.dataset.view}"]`) as HTMLButtonElement | null)?.click();
+  }));
+  document.getElementById('engMore')!.addEventListener('click', () => load(true));
+
+  ready.then(() => {
+    highlight();
+    load();
+    loadSummary();
+  });
+</script>

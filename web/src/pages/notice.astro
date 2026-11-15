@@ -1,0 +1,636 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import '../styles/detail.css';
+---
+<Layout title="Notice" nav="gst">
+  <a slot="actions" class="btn ghost icon mobile-only" id="backBtn" href="/gst-notices" aria-label="Back"><Icon name="back" /></a>
+
+  <div id="loading" class="stack">
+    <div class="card card-pad"><div class="skel line"></div><div class="skel line"></div><div class="skel line"></div></div>
+    <div class="card card-pad"><div class="skel line"></div><div class="skel line"></div></div>
+  </div>
+
+  <div id="view" class="eg nt" hidden>
+    <a class="back desktop-only small" id="backLink" href="/gst-notices"><Icon name="back" /><span>GST notices</span></a>
+
+    <header class="card eg-hero reveal">
+      <div class="eg-top">
+        <div class="eg-main">
+          <div class="eg-ids" id="nIds"></div>
+          <h1 id="nClient"></h1>
+          <p class="svc" id="nType"></p>
+        </div>
+        <div class="eg-head-actions">
+          <span id="nStage"></span>
+          <button class="btn" id="edit" type="button"><Icon name="edit" />Edit</button>
+        </div>
+      </div>
+      <p class="nt-subject" id="nSubject"></p>
+      <div class="eg-facts" id="facts"></div>
+    </header>
+
+    <section class="card eg-progress reveal" aria-labelledby="nextTitle">
+      <div class="stepper" id="stepper"></div>
+      <div class="next" id="next">
+        <span class="next-ic" id="nextIc"></span>
+        <div class="next-txt">
+          <div class="next-k">Next action</div>
+          <h2 id="nextTitle"></h2>
+          <p id="nextText"></p>
+        </div>
+        <div class="next-actions" id="actions"></div>
+      </div>
+    </section>
+
+    <div class="banner info order-banner reveal" id="orderBanner" hidden><Icon name="info" /><span></span></div>
+
+    <div class="eg-grid">
+      <div class="eg-col">
+        <section class="card reveal">
+          <div class="card-head">
+            <h2>Movement</h2>
+            <button class="btn ghost" type="button" id="recordBtn2"><Icon name="plus" />Record</button>
+          </div>
+          <div class="card-body"><ul class="eg-timeline nt-log" id="log"></ul></div>
+        </section>
+      </div>
+      <aside class="eg-col">
+        <section class="card reveal bill-card">
+          <div class="card-head"><h2>Billing</h2></div>
+          <div class="card-body" id="billBody"></div>
+        </section>
+        <section class="card reveal">
+          <div class="card-head"><h2>Notice details</h2></div>
+          <div class="card-body"><dl class="eg-details" id="details"></dl></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Record movement -->
+  <dialog class="sheet" id="mvSheet" aria-labelledby="mvTitle">
+    <form id="mvForm" novalidate>
+      <div class="sheet-grip"></div>
+      <div class="sheet-head">
+        <h2 id="mvTitle">Record movement</h2>
+        <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+      </div>
+      <div class="sheet-body">
+        <div class="form-grid cols-2">
+          <label class="field span-2"><span>What happened? <em>*</em></span><select name="event" id="mvEvent"></select></label>
+          <div class="banner info span-2" id="mvHint" hidden><Icon name="info" /><span></span></div>
+          <label class="field"><span>Date <em>*</em></span><input name="event_date" type="date" /></label>
+          <label class="field" data-m="ref"><span id="mvRefLabel">Reference</span><input name="ref" maxlength="120" class="mono" /></label>
+          <label class="field" data-m="hearing_date"><span>Hearing date <em>*</em></span><input name="hearing_date" type="date" /></label>
+          <label class="field" data-m="outcome"><span>Outcome</span><select name="outcome" id="mvOutcome"></select></label>
+          <label class="field" data-m="demand_amount"><span>Demand in the order (₹)</span><input name="demand_amount" inputmode="decimal" placeholder="0 if dropped" /></label>
+          <div class="form-section span-2">What next</div>
+          <label class="field span-2"><span>Next action</span><input name="next_action" maxlength="250" /></label>
+          <label class="field"><span id="mvDueLabel">Next action due</span><input name="next_due" type="date" /></label>
+          <span></span>
+          <label class="field span-2"><span>Notes · ARN / hearing details</span><textarea name="notes" rows="3" maxlength="4000" placeholder="e.g. Reply filed with reconciliation statement and purchase register"></textarea></label>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary" id="mvSave">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Billing: create / link / no charge -->
+  <dialog class="sheet narrow" id="blSheet" aria-labelledby="blTitle">
+    <form id="blForm" novalidate>
+      <div class="sheet-grip"></div>
+      <div class="sheet-head">
+        <h2 id="blTitle">Billing</h2>
+        <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+      </div>
+      <div class="sheet-body">
+        <div class="banner info" id="blHint" hidden><Icon name="info" /><span></span></div>
+        <div class="form-grid">
+          <div data-bl="create" class="form-grid">
+            <label class="field"><span>For</span><select name="purpose"><option value="reply">Reply to the notice</option><option value="appeal">Appeal</option></select></label>
+            <label class="field"><span>Service on the sales order</span><input name="service" maxlength="250" /></label>
+            <label class="field"><span>Fee (₹)</span><input name="fee" inputmode="decimal" placeholder="e.g. 5000" /><span class="hint">Leave blank to set it later on the SO.</span></label>
+          </div>
+          <label class="field" data-bl="link"><span>Sales order <em>*</em></span><select name="engagement_id"></select></label>
+          <label class="field" data-bl="none"><span>Reason</span><input name="note" maxlength="160" placeholder="e.g. Covered under the monthly GST retainer" /></label>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary" id="blSave">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Notice done: mark the SO delivered -->
+  <dialog class="sheet narrow" id="dvSheet" aria-labelledby="dvTitle">
+    <form id="dvForm" novalidate>
+      <div class="sheet-grip"></div>
+      <div class="sheet-head">
+        <h2 id="dvTitle">Ready to bill?</h2>
+        <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+      </div>
+      <div class="sheet-body stack">
+        <p id="dvText"></p>
+        <label class="field"><span>Delivered on</span><input name="delivered_on" type="date" /></label>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="btn" data-close>Not yet</button>
+        <button type="submit" class="btn primary" id="dvSave">Mark delivered</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Edit details -->
+  <dialog class="sheet" id="edSheet" aria-labelledby="edTitle">
+    <form id="edForm" novalidate>
+      <div class="sheet-grip"></div>
+      <div class="sheet-head">
+        <h2 id="edTitle">Edit notice</h2>
+        <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+      </div>
+      <div class="sheet-body">
+        <div class="form-grid cols-2">
+          <label class="field span-2"><span>Notice / form</span><select name="type_code" id="edType"></select></label>
+          <label class="field"><span id="edIdLabel">GSTIN</span><input name="tax_id" class="mono" maxlength="15" /></label>
+          <label class="field" data-it><span>Act</span><select name="act"><option value="1961">Income-tax Act, 1961</option><option value="2025">Income-tax Act, 2025</option></select></label>
+          <label class="field"><span>Section</span><input name="section" maxlength="60" /></label>
+          <label class="field"><span>Reference no. / DIN</span><input name="ref_no" maxlength="80" class="mono" /></label>
+          <div class="field" id="edPeriodField"><span id="edPeriodLabel">Period</span><input type="hidden" name="period" /></div>
+          <label class="field"><span>Notice date</span><input name="notice_date" type="date" /></label>
+          <label class="field"><span>Received on</span><input name="received_date" type="date" /></label>
+          <label class="field span-2"><span>Issue / subject <em>*</em></span><textarea name="subject" rows="2" maxlength="500"></textarea></label>
+          <div class="form-section span-2">Issuing officer</div>
+          <label class="field"><span>Officer name</span><input name="officer_name" maxlength="120" placeholder="As signed on the notice" autocomplete="off" /></label>
+          <label class="field"><span>Designation</span><input name="officer_designation" maxlength="120" data-officer-designation autocomplete="off" placeholder="Pick or type" /></label>
+          <label class="field span-2"><span>Location / jurisdiction</span><input name="officer_location" maxlength="160" data-officer-location autocomplete="off" /></label>
+          <div class="form-section span-2">Amount &amp; dates</div>
+          <label class="field"><span>Tax (₹)</span><input name="tax_amount" inputmode="decimal" /></label>
+          <label class="field"><span>Interest (₹)</span><input name="interest_amount" inputmode="decimal" /></label>
+          <label class="field"><span>Penalty (₹)</span><input name="penalty_amount" inputmode="decimal" /></label>
+          <label class="field"><span>Hearing date</span><input name="hearing_date" type="date" /></label>
+          <label class="field span-2"><span>Next action</span><input name="next_action" maxlength="250" /></label>
+          <label class="field"><span>Next action due</span><input name="next_due" type="date" /></label>
+          <span></span>
+          <label class="field"><span>Assigned to</span><select name="assigned_to" data-employees><option value="">— Not assigned —</option></select></label>
+          <label class="field"><span>Reviewer</span><select name="reviewer_id" data-employees><option value="">— Choose —</option></select></label>
+          <label class="field span-2"><span>Internal notes</span><textarea name="notes" rows="3" maxlength="4000"></textarea></label>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary" id="edSave">Save</button>
+      </div>
+    </form>
+  </dialog>
+</Layout>
+
+<style is:global>
+  .nt-subject { margin: 12px 0 0; font-size: 15px; white-space: pre-line; overflow-wrap: anywhere; }
+  .order-banner { margin: -4px 0 16px; }
+  .bill-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+  .bill-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; animation: fade-up .3s var(--ease-out) both; }
+  .bill-item a { font-weight: 650; text-decoration: none; }
+  .bill-item .bi-s { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); }
+  .bill-item .bi-x { width: 30px; min-height: 30px; color: var(--muted); }
+  .bill-item .bi-x svg { width: 14px; height: 14px; }
+  .bill-empty { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 12px; background: var(--warn-soft); margin-bottom: 12px; font-size: 14px; }
+  .bill-empty.none { background: var(--surface-2); }
+  .bill-empty svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+  .bill-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .bill-actions .btn { min-height: 36px; font-size: 13.5px; }
+  /* Several possible movements: put them under the text so the next action stays readable. */
+  .nt .next { grid-template-columns: auto minmax(0, 1fr); }
+  .nt .next-actions { grid-column: 2; justify-content: flex-start; }
+  @media (max-width: 720px) { .nt .next-actions { grid-column: 1 / -1; } }
+  .nt-log .tl-t b { font-weight: 650; }
+  .nt-log .ref { display: inline-block; margin-top: 3px; font-family: var(--mono, ui-monospace, monospace); font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  .nt-log .note { margin-top: 4px; font-size: 13.5px; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+  .nt-log .nd { font-size: 12.5px; color: var(--accent-text); margin-top: 3px; }
+  .nt-log li.ev-received .tl-ic { background: var(--accent); color: var(--on-accent); }
+  .nt-log li.ev-order .tl-ic, .nt-log li.ev-hearing .tl-ic { background: var(--warn-soft); color: var(--warn); }
+  .nt-log li.ev-closed .tl-ic, .nt-log li.ev-paid .tl-ic { background: var(--surface-2); color: var(--muted); }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, dateOnly, dateTime, ago, icon, initials, openSheet, closeSheet, readForm, fillForm, submitting, toast, toastError } from '../lib/ui';
+  import { loadEmployeeOptions } from '../lib/clientForm';
+  import { rupees, todayIST } from '../lib/stages';
+  import { loadMeta, TAX, NSTAGES, noticeBadge, dueInfo, addDays, addMonths, type NEvent, type Tax } from '../lib/notices';
+  import { yearPicker } from '../lib/yearPicker';
+  import { suggest } from '../lib/suggest';
+  import { DESIGNATIONS } from '../lib/notices';
+  let edDesig: unknown = null;
+  let edYears: ReturnType<typeof yearPicker> | null = null;
+
+  const id = new URLSearchParams(location.search).get('id');
+  let data: any = null;
+  let n: any = null;
+  let meta: any = null;
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>';
+  const stagger = (el: Element) => Array.from(el.children).forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(Math.min(i, 12))));
+
+  const TRACK = [
+    { key: [1], label: 'Received' },
+    { key: [2, 3], label: 'Preparing reply' },
+    { key: [4], label: 'Reply filed' },
+    { key: [5], label: 'Hearing' },
+    { key: [6, 7], label: 'Order / appeal' },
+    { key: [8], label: 'Closed' },
+  ];
+  // Likely next movements per stage (the rest are under "More…").
+  const QUICK: Record<number, string[]> = {
+    1: ['docs_requested', 'reply_filed', 'extension'],
+    2: ['docs_received', 'extension'],
+    3: ['reply_filed', 'extension'],
+    4: ['hearing', 'order', 'further_notice'],
+    5: ['hearing_done', 'order', 'extension'],
+    6: ['appeal', 'paid', 'rectification', 'closed'],
+    7: ['order', 'closed'],
+    8: ['reopen'],
+  };
+  const REF_LABEL: Record<string, string> = {
+    reply_filed: 'ARN / acknowledgement no.', order: 'Order no. / DIN', paid: 'Challan / DRC-03 ref.', appeal: 'Appeal ARN',
+    extension: 'Letter / request ref.', further_notice: 'DIN / reference', rectification: 'Application ref.',
+  };
+  const EV_ICON: Record<string, string> = { received: 'file', docs_requested: 'mail', docs_received: 'check', extension: 'calendar', reply_filed: 'check', further_notice: 'alert', hearing: 'team', hearing_done: 'team', order: 'file', paid: 'check', appeal: 'landmark', rectification: 'edit', closed: 'check', reopen: 'activity', note: 'edit' };
+
+  // ---------- render ----------
+  function renderHero() {
+    const T = TAX[n.tax as Tax];
+    document.getElementById('nIds')!.innerHTML = [
+      `<span class="chip mono">${esc(n.type_code)}</span>`,
+      `<span class="chip cat">${esc(T.label)}</span>`,
+      n.ref_no ? `<span class="chip mono">${esc(n.ref_no)}</span>` : '',
+      n.period ? `<span class="chip">${esc(n.period)}</span>` : '',
+    ].join('');
+    document.getElementById('nClient')!.innerHTML = `<a href="/client?id=${n.client_id}">${esc(n.client_name)}</a>`;
+    document.getElementById('nType')!.textContent = [n.type_name, n.section].filter(Boolean).join(' · ');
+    document.getElementById('nSubject')!.textContent = n.subject;
+    document.getElementById('nStage')!.innerHTML = noticeBadge(n.stage) + (n.overdue ? ' <span class="badge red dot">Overdue</span>' : '');
+    const d = dueInfo(n);
+    const person = (name: string | null, empty: string) => name ? `<span class="avatar">${esc(initials(name))}</span><span>${esc(name)}</span>` : `<span class="none">${esc(empty)}</span>`;
+    const appeal = n.order_date && n.appeal_due && n.stage !== 8;
+    const facts = [
+      { k: n.stage === 8 ? 'Closed on' : 'Next action due', v: n.stage === 8 ? esc(dateOnly(n.closed_on)) : n.next_due ? esc(dateOnly(n.next_due)) : '<span class="none">Not set</span>', s: d.text, cls: d.tone === 'red' ? 'bad' : d.tone === 'amber' ? 'soon' : '' },
+      { k: 'Amount involved', v: n.disputed_total ? esc(rupees(n.disputed_total)) : '<span class="none">Not stated</span>', s: n.demand_amount != null && n.order_date ? `Order demand ${esc(rupees(n.demand_amount))}` : '' },
+      appeal
+        ? { k: 'Appeal due', v: esc(dateOnly(n.appeal_due)), s: dueInfo({ next_due: n.appeal_due, stage: n.stage, days_left: null }).text, cls: 'soon' }
+        : { k: 'Hearing', v: n.hearing_date ? esc(dateOnly(n.hearing_date)) : '<span class="none">Not fixed</span>', s: n.hearing_date && n.stage < 8 ? dueInfo({ next_due: n.hearing_date, stage: n.stage, days_left: null }).text : '' },
+      { k: 'Assigned to', v: person(n.assigned_name, 'Not assigned'), s: n.reviewer_name ? `Reviewer ${esc(n.reviewer_name)}` : '' },
+    ];
+    const el = document.getElementById('facts')!;
+    el.innerHTML = facts.map((f: any) => `<div class="fact"><span class="k">${esc(f.k)}</span><span class="v">${f.v}</span>${f.s ? `<span class="s ${f.cls || ''}">${f.s}</span>` : ''}</div>`).join('');
+    stagger(el);
+  }
+
+  function renderStepper() {
+    const cur = TRACK.findIndex((t) => t.key.includes(n.stage));
+    // Date each track step was reached, from the movement log (oldest first).
+    const reached: Record<number, string> = {};
+    [...data.log].reverse().forEach((e: any) => { const i = TRACK.findIndex((t) => t.key.includes(Number(e.stage_after))); if (i >= 0 && !reached[i]) reached[i] = e.event_date; });
+    const el = document.getElementById('stepper')!;
+    el.innerHTML = TRACK.map((t, i) => {
+      const cls = i < cur ? 'done' : i === cur ? `current ${n.stage === 2 ? 'wait' : ''}` : 'future';
+      const label = i === cur && n.stage === 2 ? 'Waiting on client' : i === cur && n.stage === 7 ? 'Appeal / rectification' : t.label;
+      const dt = i <= cur && reached[i] ? dateOnly(reached[i]).replace(/ \d{4}$/, '') : '';
+      return `<div class="step ${cls} reveal"><span class="dot">${i < cur ? CHECK : ''}</span>${esc(label)}<span class="dt">${esc(dt)}</span></div>`;
+    }).join('');
+    stagger(el);
+    (el.querySelector('.current') as HTMLElement | null)?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
+
+  function renderNext() {
+    const d = dueInfo(n);
+    const box = document.getElementById('next')!;
+    box.className = `next ${n.stage === 8 ? 'closed' : n.stage === 2 || d.tone === 'red' ? 'wait' : ''}`;
+    document.getElementById('nextIc')!.innerHTML = icon(n.stage === 8 ? 'check' : n.stage === 5 ? 'team' : d.tone === 'red' ? 'alert' : 'calendar');
+    document.getElementById('nextTitle')!.textContent = n.stage === 8 ? `Closed${n.outcome ? ` · ${n.outcome}` : ''}` : (n.next_action || 'Record what happens next');
+    document.getElementById('nextText')!.textContent = n.stage === 8
+      ? 'Reopen it if the department sends anything further.'
+      : n.next_due ? `By ${dateOnly(n.next_due)} · ${d.text}${n.assigned_name ? ` · ${n.assigned_name}` : ''}` : 'No due date set.';
+    const events: NEvent[] = data.events;
+    const quick = (QUICK[n.stage] || []).map((c) => events.find((e) => e.code === c)).filter(Boolean) as NEvent[];
+    const bar = document.getElementById('actions')!;
+    bar.innerHTML = [
+      `<button class="btn" type="button" data-ev="">More…</button>`,
+      ...quick.slice(1).reverse().map((e) => `<button class="btn" type="button" data-ev="${e.code}">${esc(short(e))}</button>`),
+      quick[0] ? `<button class="btn primary" type="button" data-ev="${quick[0].code}">${esc(short(quick[0]))}</button>` : '',
+    ].join('');
+    bar.querySelectorAll<HTMLButtonElement>('[data-ev]').forEach((b) => b.addEventListener('click', () => openMove(b.dataset.ev || '')));
+  }
+  const short = (e: NEvent) => ({ docs_requested: 'Ask client for documents', docs_received: 'Documents received', extension: 'Extension sought', further_notice: 'Further notice', hearing: 'Hearing scheduled', hearing_done: 'Hearing attended', order: 'Order received', paid: 'Demand paid', rectification: 'Rectification', closed: 'Close notice', reopen: 'Reopen' } as Record<string, string>)[e.code] || e.label;
+
+  function renderOrder() {
+    const b = document.getElementById('orderBanner')!;
+    b.hidden = !(n.order_date && n.stage === 6);
+    if (!b.hidden) (b.querySelector('span') as HTMLElement).textContent =
+      `Order dated ${dateOnly(n.order_date)}${n.outcome ? ` · ${n.outcome}` : ''}. ${data.appeal.hint} Appeal due by ${dateOnly(n.appeal_due)}.`;
+  }
+
+  function renderLog() {
+    const el = document.getElementById('log')!;
+    el.innerHTML = data.log.length ? data.log.map((e: any) => `
+      <li class="move ev-${esc(e.event)}">
+        <span class="tl-ic">${icon(EV_ICON[e.event] || 'chevron')}</span>
+        <div>
+          <div class="tl-t"><b>${esc(e.label)}</b></div>
+          ${e.ref ? `<span class="ref">${esc(e.ref)}</span>` : ''}
+          ${e.notes ? `<div class="note">${esc(e.notes)}</div>` : ''}
+          ${e.next_due && e.event !== 'note' ? `<div class="nd">Next due ${esc(dateOnly(e.next_due))}</div>` : ''}
+          <div class="when" title="${esc(dateTime(e.created_at))}">${esc(dateOnly(e.event_date))} · ${esc(e.by_name || 'System')} · recorded ${esc(ago(e.created_at))}</div>
+        </div>
+      </li>`).join('') : '<li class="muted">Nothing recorded yet.</li>';
+    stagger(el);
+  }
+
+  function renderDetails() {
+    const T = TAX[n.tax as Tax];
+    const rows: [string, string, boolean?][] = [];
+    const add = (k: string, v: any, html = false, block = false) => { if (v !== null && v !== undefined && v !== '') rows.push([k, html ? v : esc(v), block]); };
+    add('Client', `<a href="/client?id=${n.client_id}">${esc(n.client_name)}</a>`, true);
+    add(T.idLabel, n.tax_id ? `<span class="mono">${esc(n.tax_id)}</span>` : '', true);
+    add('Notice', `${n.type_code} · ${n.type_name}`);
+    add('Section', [n.section, n.tax === 'it' && n.act ? `IT Act ${n.act}` : ''].filter(Boolean).join(' · '));
+    add('Reference / DIN', n.ref_no ? `<span class="mono">${esc(n.ref_no)}</span>` : '', true);
+    add(T.period, n.period);
+    add('Officer', n.officer_name || (!n.officer_designation && !n.officer_location ? n.authority : ''));
+    add('Designation', n.officer_designation);
+    add('Location', n.officer_location);
+    add('Notice date', n.notice_date && dateOnly(n.notice_date));
+    add('Received on', n.received_date && dateOnly(n.received_date));
+    add('Reply due', n.reply_due && n.stage < 4 ? dateOnly(n.reply_due) : n.reply_due ? `${dateOnly(n.reply_due)} (reply filed)` : '');
+    const amt = [['Tax', n.tax_amount], ['Interest', n.interest_amount], ['Penalty', n.penalty_amount]].filter(([, v]) => v !== null && Number(v) > 0);
+    if (amt.length) add('Amount', amt.map(([k, v]) => `${k} ${rupees(v)}`).join('\n'));
+    add('Order', n.order_date ? `${dateOnly(n.order_date)}${n.outcome ? ` · ${n.outcome}` : ''}` : '');
+    add('Reviewer', n.reviewer_name);
+    add('Internal notes', n.notes, false, true);
+    add('Created', `${dateTime(n.created_at)}${n.created_by_name ? `\nby ${n.created_by_name}` : ''}`);
+    document.getElementById('details')!.innerHTML = rows.map(([k, v, b]) => `<div class="${b ? 'block' : ''}"><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('');
+  }
+
+  const STAGE_TONE: Record<number, string> = { 3: 'green', 4: 'green', 5: 'green', 6: 'amber', 7: 'violet', 8: 'green solid', 9: 'green solid', 10: 'green solid' };
+  const openSOs = () => (data.billing as any[]).filter((b) => b.stage >= 3 && b.stage <= 7);
+  function renderBilling() {
+    const b = data.billing as any[];
+    const el = document.getElementById('billBody')!;
+    let html = '';
+    if (b.length) {
+      html += `<ul class="bill-list">${b.map((x) => `
+        <li class="bill-item">
+          <span><a href="/engagement?id=${x.id}" class="mono">${esc(x.so_no)}</a> <span class="badge">${esc(x.purpose_label)}</span></span>
+          <button type="button" class="btn ghost icon bi-x" data-unlink="${x.id}" aria-label="Unlink ${esc(x.so_no)}" title="Unlink">${icon('close')}</button>
+          <span class="bi-s"><span class="badge stage ${STAGE_TONE[x.stage] || ''}">${esc(x.stage_label)}</span> · ${x.fee ? esc(rupees(x.fee)) : 'Fee not set'}${x.delivered_on ? ` · delivered ${esc(dateOnly(x.delivered_on))}` : ''}</span>
+        </li>`).join('')}</ul>`;
+    } else if (n.no_charge) {
+      html += `<div class="bill-empty none">${icon('check')}<div><b>No charge</b>${n.no_charge_note ? `<br><span class="muted small">${esc(n.no_charge_note)}</span>` : ''}</div></div>`;
+    } else {
+      html += `<div class="bill-empty">${icon('alert')}<div><b>Not billed yet</b><br><span class="muted small">Create a sales order so the fee is invoiced when the work is done.</span></div></div>`;
+    }
+    html += `<div class="bill-actions">
+      <button class="btn ${b.length || n.no_charge ? '' : 'primary'}" type="button" data-bl-open="create">${icon('plus')}${b.length ? 'Another SO' : 'Create SO'}</button>
+      <button class="btn" type="button" data-bl-open="link">Link existing</button>
+      ${!b.length ? `<button class="btn ghost" type="button" data-bl-open="${n.no_charge ? 'charge' : 'none'}">${n.no_charge ? 'Bill it after all' : 'No charge'}</button>` : ''}
+    </div>`;
+    el.innerHTML = html;
+  }
+  document.getElementById('billBody')!.addEventListener('click', async (e) => {
+    const t = e.target as HTMLElement;
+    const open = t.closest<HTMLElement>('[data-bl-open]');
+    if (open) {
+      const mode = open.dataset.blOpen!;
+      if (mode === 'charge') { await billing({ action: 'no_charge', on: false }, 'Billing reopened'); return; }
+      openBilling(mode as any);
+      return;
+    }
+    const un = t.closest<HTMLElement>('[data-unlink]');
+    if (un) {
+      const so = (data.billing as any[]).find((x) => String(x.id) === un.dataset.unlink);
+      if (!confirm(`Unlink ${so?.so_no} from this notice? The sales order itself is not deleted.`)) return;
+      await billing({ action: 'unlink', engagement_id: Number(un.dataset.unlink) }, 'Unlinked');
+    }
+  });
+  async function billing(body: any, msg: string) {
+    try { await api(`/notices/${id}/billing`, { method: 'POST', body }); toast(msg); await load(); } catch (err) { toastError(err); }
+  }
+
+  // ---- billing sheet ----
+  const blSheet = document.getElementById('blSheet') as HTMLDialogElement;
+  const blForm = document.getElementById('blForm') as HTMLFormElement;
+  let blMode: 'create' | 'link' | 'none' = 'create';
+  const svcFor = (purpose: string) => `${purpose === 'appeal' ? `Appeal against ${n.type_code} order` : `Reply to ${n.type_code} – ${n.type_name}`}${n.period ? ` · ${n.period}` : ''}`;
+  async function openBilling(mode: 'create' | 'link' | 'none', purpose: 'reply' | 'appeal' = 'reply', hintText = '') {
+    blMode = mode;
+    blForm.reset();
+    blForm.querySelectorAll<HTMLElement>('[data-bl]').forEach((el) => { el.hidden = el.dataset.bl !== mode; });
+    const hint = document.getElementById('blHint')!;
+    hint.hidden = !hintText; (hint.querySelector('span') as HTMLElement).textContent = hintText;
+    (document.getElementById('blTitle') as HTMLElement).textContent = mode === 'create' ? (purpose === 'appeal' ? 'Sales order for the appeal' : 'Create a sales order') : mode === 'link' ? 'Link an existing sales order' : 'No charge';
+    (document.getElementById('blSave') as HTMLElement).textContent = mode === 'create' ? 'Create SO' : mode === 'link' ? 'Link' : 'Mark no charge';
+    if (mode === 'create') fillForm(blForm, { purpose, service: svcFor(purpose) });
+    if (mode === 'link') {
+      const sel = blForm.elements.namedItem('engagement_id') as HTMLSelectElement;
+      sel.innerHTML = '<option value="">Loading…</option>';
+      api(`/engagements?client_id=${n.client_id}&view=work&limit=100`).then((d) => {
+        const linked = new Set((data.billing as any[]).map((x) => x.id));
+        const sos = d.items.filter((g: any) => g.so_no && !linked.has(g.id));
+        sel.innerHTML = sos.length ? '<option value="">— Choose —</option>' + sos.map((g: any) => `<option value="${g.id}">${esc(g.so_no)} · ${esc(g.service)}</option>`).join('') : '<option value="">No other sales orders for this client</option>';
+      }).catch(() => { sel.innerHTML = '<option value="">Could not load sales orders</option>'; });
+    }
+    openSheet(blSheet);
+  }
+  (blForm.elements.namedItem('purpose') as HTMLSelectElement).addEventListener('change', (e) => {
+    const svc = blForm.elements.namedItem('service') as HTMLInputElement;
+    if (svc.value === svcFor('reply') || svc.value === svcFor('appeal')) svc.value = svcFor((e.target as HTMLSelectElement).value);
+  });
+  blForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = readForm(blForm);
+    const body = blMode === 'create' ? { action: 'create', purpose: v.purpose, service: v.service, fee: v.fee.trim() }
+      : blMode === 'link' ? { action: 'link', engagement_id: Number(v.engagement_id) || '' }
+        : { action: 'no_charge', on: true, note: v.note };
+    const res = await submitting(blForm, document.getElementById('blSave') as HTMLButtonElement, () => api(`/notices/${id}/billing`, { method: 'POST', body }));
+    if (!res) return;
+    closeSheet(blSheet);
+    toast(res.created ? `${res.created.so_no} created` : blMode === 'link' ? 'Sales order linked' : 'Marked no charge');
+    load();
+  });
+
+  // ---- notice done -> SO delivered ----
+  const dvSheet = document.getElementById('dvSheet') as HTMLDialogElement;
+  const dvForm = document.getElementById('dvForm') as HTMLFormElement;
+  let dvQueue: any[] = [];
+  function askDeliver(date: string) {
+    dvQueue = openSOs().filter((x) => x.purpose !== 'appeal' || n.stage === 8);
+    if (!dvQueue.length) return false;
+    const names = dvQueue.map((x) => x.so_no).join(', ');
+    document.getElementById('dvText')!.innerHTML = `The notice work is done. Mark <b class="mono">${esc(names)}</b> as <b>Completed and delivered</b> so it shows up for invoicing?`;
+    fillForm(dvForm, { delivered_on: date || todayIST() });
+    openSheet(dvSheet);
+    return true;
+  }
+  dvForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = readForm(dvForm);
+    const btn = document.getElementById('dvSave') as HTMLButtonElement;
+    const ok = await submitting(dvForm, btn, async () => {
+      for (const so of dvQueue) await api(`/notices/${id}/billing`, { method: 'POST', body: { action: 'deliver', engagement_id: so.id, delivered_on: v.delivered_on } });
+      return true;
+    });
+    if (!ok) return;
+    closeSheet(dvSheet);
+    toast(`${dvQueue.map((x) => x.so_no).join(', ')} ready to bill`);
+    load();
+  });
+
+  /** After a movement: offer the billing step that naturally follows. */
+  function afterMovement(code: string, date: string) {
+    if (['reply_filed', 'order', 'closed', 'paid'].includes(code) && askDeliver(date)) return;
+    if (code === 'appeal' && !(data.billing as any[]).some((x) => x.purpose === 'appeal')) {
+      openBilling('create', 'appeal', 'Appeals are billed separately. Create a sales order for the appeal now?');
+      return;
+    }
+    if (code === 'reply_filed' && !(data.billing as any[]).length && !n.no_charge) {
+      openBilling('create', 'reply', 'The reply is filed but this notice is not billed yet.');
+    }
+  }
+
+  function render(d: any) {
+    data = d; n = d.item;
+    const T = TAX[n.tax as Tax];
+    (document.getElementById('backLink') as HTMLAnchorElement).href = T.list;
+    (document.getElementById('backBtn') as HTMLAnchorElement).href = T.list;
+    document.querySelector('#backLink span')!.textContent = T.title;
+    if (n.tax === 'it') {
+      document.querySelectorAll('.nav a[href="/gst-notices"]').forEach((a) => a.removeAttribute('aria-current'));
+      document.querySelectorAll('.nav a[href="/it-notices"]').forEach((a) => a.setAttribute('aria-current', 'page'));
+    }
+    document.title = `${n.type_code} · ${n.client_name} · KSA CRM`;
+    (document.querySelector('.topbar .title') as HTMLElement).textContent = `${n.type_code} · ${n.client_name}`;
+    renderHero(); renderStepper(); renderNext(); renderOrder(); renderLog(); renderDetails(); renderBilling();
+  }
+
+  async function load() {
+    if (!id || !/^\d+$/.test(id)) { location.replace('/gst-notices'); return; }
+    try {
+      const [d, m] = await Promise.all([api(`/notices/${id}`), loadMeta()]);
+      meta = m;
+      render(d);
+      document.getElementById('loading')!.hidden = true;
+      document.getElementById('view')!.hidden = false;
+    } catch (err: any) {
+      toastError(err);
+      if (err.status === 404) setTimeout(() => location.replace('/gst-notices'), 1200);
+    }
+  }
+
+  // ---------- record movement ----------
+  const mvSheet = document.getElementById('mvSheet') as HTMLDialogElement;
+  const mvForm = document.getElementById('mvForm') as HTMLFormElement;
+  const mv = (k: string) => mvForm.elements.namedItem(k) as HTMLInputElement;
+  const evSel = document.getElementById('mvEvent') as HTMLSelectElement;
+  let touched = { next_due: false, next_action: false };
+
+  function allowed(): NEvent[] {
+    return (data.events as NEvent[]).filter((e) => (n.stage === 8 ? ['reopen', 'note', 'appeal', 'rectification'].includes(e.code) : e.code !== 'reopen'));
+  }
+  function currentEvent() { return (data.events as NEvent[]).find((e) => e.code === evSel.value); }
+  function applyEvent() {
+    const ev = currentEvent();
+    const ask = ev?.ask || [];
+    mvForm.querySelectorAll<HTMLElement>('[data-m]').forEach((el) => { el.hidden = !ask.includes(el.dataset.m!); });
+    document.getElementById('mvRefLabel')!.textContent = REF_LABEL[ev?.code || ''] || 'Reference';
+    const hint = document.getElementById('mvHint')!;
+    const hintText = ev?.code === 'order' ? data.appeal.hint : ev?.code === 'reply_filed' ? `Note the ARN of the ${n.reply_form} filing. We will remind you to follow up.` : ev?.code === 'hearing' ? 'The hearing date becomes the next due date.' : '';
+    hint.hidden = !hintText; (hint.querySelector('span') as HTMLElement).textContent = hintText;
+    document.getElementById('mvDueLabel')!.innerHTML = ev?.due === 'ask' ? 'New due date <em>*</em>' : ev?.code === 'order' ? 'Appeal / next action due' : 'Next action due';
+    (document.getElementById('mvSave') as HTMLButtonElement).textContent = ev ? 'Save' : 'Save';
+    defaults();
+  }
+  function defaults() {
+    const ev = currentEvent();
+    if (!ev) return;
+    const date = mv('event_date').value || todayIST();
+    let due = '';
+    if (typeof ev.due === 'number') {
+      due = addDays(date, ev.due);
+      if (ev.code === 'docs_requested' && n.reply_due && due > n.reply_due.slice(0, 10)) due = n.reply_due.slice(0, 10);
+    }
+    else if (ev.due === 'reply') due = n.reply_due || n.next_due || '';
+    else if (ev.due === 'keep') due = n.next_due || '';
+    else if (ev.due === 'hearing') due = mv('hearing_date').value;
+    else if (ev.due === 'appeal') due = n.tax === 'gst' ? addMonths(date, 3) : addDays(date, 30);
+    if (!touched.next_due) mv('next_due').value = (due || '').slice(0, 10);
+    if (!touched.next_action) mv('next_action').value = ev.next === null ? (n.next_action || '') : ev.next;
+  }
+  function openMove(code: string) {
+    mvForm.reset();
+    touched = { next_due: false, next_action: false };
+    evSel.innerHTML = `<option value="">— Choose —</option>` + allowed().map((e) => `<option value="${e.code}">${esc(e.label)}</option>`).join('');
+    (document.getElementById('mvOutcome') as HTMLSelectElement).innerHTML = `<option value="">— Choose —</option>` + meta.outcomes.map((o: string) => `<option>${esc(o)}</option>`).join('');
+    evSel.value = code;
+    fillForm(mvForm, { event_date: todayIST() });
+    applyEvent();
+    (document.getElementById('mvTitle') as HTMLElement).textContent = code ? short(currentEvent()!) : 'Record movement';
+    openSheet(mvSheet);
+  }
+  evSel.addEventListener('change', () => { touched = { next_due: false, next_action: false }; applyEvent(); (document.getElementById('mvTitle') as HTMLElement).textContent = currentEvent() ? short(currentEvent()!) : 'Record movement'; });
+  mv('event_date').addEventListener('change', defaults);
+  mv('hearing_date').addEventListener('change', defaults);
+  mv('next_due').addEventListener('input', () => { touched.next_due = true; });
+  mv('next_action').addEventListener('input', () => { touched.next_action = true; });
+  mvForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = readForm(mvForm);
+    const body: Record<string, any> = { revision: n.revision, event: v.event, event_date: v.event_date, notes: v.notes, next_action: v.next_action, next_due: v.next_due };
+    const ask = currentEvent()?.ask || [];
+    for (const k of ['ref', 'hearing_date', 'outcome', 'demand_amount']) if (ask.includes(k)) body[k] = v[k];
+    const res = await submitting(mvForm, document.getElementById('mvSave') as HTMLButtonElement, () => api(`/notices/${id}/events`, { method: 'POST', body }));
+    if (!res) return;
+    closeSheet(mvSheet);
+    toast('Movement recorded');
+    await load();
+    setTimeout(() => afterMovement(v.event, v.event_date), 450);
+  });
+  document.getElementById('recordBtn2')!.addEventListener('click', () => openMove(''));
+
+  // ---------- edit ----------
+  const edSheet = document.getElementById('edSheet') as HTMLDialogElement;
+  const edForm = document.getElementById('edForm') as HTMLFormElement;
+  document.getElementById('edit')!.addEventListener('click', async () => {
+    const T = TAX[n.tax as Tax];
+    edForm.reset();
+    document.getElementById('edIdLabel')!.textContent = T.idLabel;
+    document.getElementById('edPeriodLabel')!.textContent = T.period;
+    const loc = edForm.elements.namedItem('officer_location') as HTMLInputElement;
+    loc.placeholder = T.locationPh;
+    if (!edDesig) edDesig = suggest(edForm.elements.namedItem('officer_designation') as HTMLInputElement, () => DESIGNATIONS[n.tax as Tax]) ?? true;
+    edForm.querySelectorAll<HTMLElement>('[data-it]').forEach((el) => { el.hidden = n.tax !== 'it'; });
+    const groups = [...new Set(meta.types[n.tax].map((t: any) => t.group))] as string[];
+    (document.getElementById('edType') as HTMLSelectElement).innerHTML = groups.map((g) => `<optgroup label="${esc(g)}">${meta.types[n.tax]
+      .filter((t: any) => t.group === g).map((t: any) => `<option value="${esc(t.code)}">${esc(t.code.replace('-OTHER', ''))} · ${esc(t.name)}</option>`).join('')}</optgroup>`).join('');
+    await loadEmployeeOptions(edForm);
+    fillForm(edForm, { ...n, act: n.act || '1961', officer_location: n.officer_location || (!n.officer_name && !n.officer_designation ? n.authority : '') || '' });
+    edYears ||= yearPicker(document.getElementById('edPeriodField')!, n.tax);
+    edYears.set(n.period);
+    openSheet(edSheet);
+  });
+  edForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = readForm(edForm);
+    if (n.tax !== 'it') delete v.act;
+    const res = await submitting(edForm, document.getElementById('edSave') as HTMLButtonElement, () => api(`/notices/${id}`, { method: 'PUT', body: { ...v, revision: n.revision } }));
+    if (!res) return;
+    closeSheet(edSheet);
+    toast('Notice updated');
+    load();
+  });
+
+  ready.then(load);
+</script>

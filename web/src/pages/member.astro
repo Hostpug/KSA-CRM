@@ -1,0 +1,154 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import EmployeeForm from '../components/EmployeeForm.astro';
+---
+<Layout title="Employee" nav="team" roles="owner admin">
+  <a slot="actions" class="btn ghost icon mobile-only" href="/team" aria-label="Back to team"><Icon name="back" /></a>
+
+  <div id="loading" class="card card-pad"><div class="skel line"></div><div class="skel line"></div></div>
+
+  <div id="view" hidden>
+    <a class="back desktop-only small" href="/team"><Icon name="back" />Team</a>
+    <div class="hero card card-pad reveal">
+      <span class="avatar lg" id="eAvatar"></span>
+      <div class="hero-main"><h1 id="eName"></h1><div class="row small muted" id="eMeta"></div></div>
+      <div class="row">
+        <button class="btn" id="reset" type="button"><Icon name="key" />Reset password</button>
+        <button class="btn primary" id="edit" type="button"><Icon name="edit" />Edit</button>
+      </div>
+    </div>
+    <div class="banner reveal" id="eBanner" hidden><Icon name="alert" /><span></span></div>
+    <section class="card reveal">
+      <div class="card-head"><h2>Employee details</h2></div>
+      <div class="card-body"><dl class="details" id="details"></dl></div>
+    </section>
+  </div>
+
+  <dialog class="sheet narrow" id="confirmReset" aria-labelledby="crTitle">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h2 id="crTitle">Reset password?</h2></div>
+    <div class="sheet-body"><p id="crText"></p></div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="crGo">Reset password</button>
+    </div>
+  </dialog>
+
+  <EmployeeForm />
+</Layout>
+
+<style>
+  .back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; color: var(--muted); }
+  .back :global(svg) { width: 16px; height: 16px; }
+  .hero { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .hero-main { flex: 1; min-width: 200px; }
+  .hero h1 { margin-bottom: 6px; }
+  .banner { margin-bottom: 16px; }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, initials, dateOnly, dateTime, openSheet, closeSheet, readForm, fillForm, submitting, toast, toastError, ROLE_LABEL } from '../lib/ui';
+  import { limitRoles, showTempPassword } from '../lib/employeeForm';
+
+  const id = new URLSearchParams(location.search).get('id');
+  const sheet = document.getElementById('empSheet') as HTMLDialogElement;
+  const form = document.getElementById('empForm') as HTMLFormElement;
+  const confirm = document.getElementById('confirmReset') as HTMLDialogElement;
+  form.querySelector('[data-edit-only]')!.removeAttribute('hidden');
+  (document.getElementById('empSheetTitle') as HTMLElement).textContent = 'Edit employee';
+  let emp: any = null;
+  let me: any = null;
+
+  function render(e: any) {
+    emp = e;
+    (document.querySelector('.topbar .title') as HTMLElement).textContent = e.name;
+    document.title = `${e.name} · KSA CRM`;
+    (document.getElementById('eAvatar') as HTMLElement).textContent = initials(e.name);
+    (document.getElementById('eName') as HTMLElement).textContent = e.name;
+    (document.getElementById('eMeta') as HTMLElement).innerHTML = [
+      `<span class="badge ${e.role === 'owner' ? 'green' : e.role === 'admin' ? 'blue' : ''}">${ROLE_LABEL[e.role]}</span>`,
+      e.active ? '<span class="badge green dot">Active</span>' : '<span class="badge dot">Inactive</span>',
+      e.designation ? `<span>${esc(e.designation)}</span>` : '',
+    ].join('');
+
+    const banner = document.getElementById('eBanner') as HTMLElement;
+    const msg = !e.active ? 'This employee is inactive and cannot sign in.'
+      : e.locked ? 'Locked after too many wrong passwords. It unlocks after 15 minutes, or reset the password now.'
+      : e.must_change_pw ? 'Waiting for first sign-in. They must set their own password when they sign in.' : '';
+    banner.hidden = !msg;
+    (banner.querySelector('span') as HTMLElement).textContent = msg;
+
+    const self = e.id === me.user.id;
+    const canManage = me.user.role === 'owner' || e.role !== 'owner';
+    (document.getElementById('edit') as HTMLElement).hidden = !canManage;
+    (document.getElementById('reset') as HTMLElement).hidden = !canManage || self;
+
+    const rows: [string, string, boolean?][] = [
+      ['Email', `<a href="mailto:${esc(e.email)}">${esc(e.email)}</a>`],
+      ['Mobile', esc(e.mobile || '—')],
+      ['Date of joining', esc(dateOnly(e.date_joined))],
+      ['Date of birth', esc(dateOnly(e.dob))],
+      ['Address', esc(e.address || '—'), true],
+      ['Emergency contact', esc([e.emergency_name, e.emergency_phone].filter(Boolean).join(' · ') || '—')],
+      ['Last sign-in', esc(e.last_login_at ? dateTime(e.last_login_at) : 'Never')],
+      ['Added', esc(dateTime(e.created_at))],
+    ];
+    (document.getElementById('details') as HTMLElement).innerHTML =
+      rows.map(([k, v, w]) => `<div class="${w ? 'wide' : ''}"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  }
+
+  async function load() {
+    if (!id || !/^\d+$/.test(id)) { location.replace('/team'); return; }
+    try {
+      const d = await api(`/employees/${id}`);
+      render(d.item);
+      document.getElementById('loading')!.hidden = true;
+      document.getElementById('view')!.hidden = false;
+    } catch (err: any) {
+      toastError(err);
+      if (err.status === 404) setTimeout(() => location.replace('/team'), 1200);
+    }
+  }
+
+  document.getElementById('edit')!.addEventListener('click', () => {
+    form.reset();
+    limitRoles(form, me.user.role, emp.role);
+    fillForm(form, emp);
+    const self = emp.id === me.user.id;
+    (form.elements.namedItem('role') as HTMLSelectElement).disabled = self;
+    (form.elements.namedItem('active') as HTMLInputElement).disabled = self;
+    openSheet(sheet);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = readForm(form);
+    if (emp.id === me.user.id) { body.role = emp.role; body.active = true; }
+    const res = await submitting(form, document.getElementById('empSave') as HTMLButtonElement, () => api(`/employees/${id}`, { method: 'PUT', body }));
+    if (!res) return;
+    closeSheet(sheet);
+    toast('Employee saved');
+    render(res.item);
+  });
+
+  document.getElementById('reset')!.addEventListener('click', () => {
+    (document.getElementById('crText') as HTMLElement).textContent =
+      `${emp.name} will be signed out on all devices and must sign in with a new temporary password.`;
+    openSheet(confirm);
+  });
+  document.getElementById('crGo')!.addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget as HTMLButtonElement;
+    btn.classList.add('loading');
+    try {
+      const r = await api(`/employees/${id}/reset-password`, { method: 'POST' });
+      closeSheet(confirm);
+      setTimeout(() => showTempPassword(emp.name, emp.email, r.tempPassword), 260);
+      load();
+    } catch (err) { toastError(err); } finally { btn.classList.remove('loading'); }
+  });
+
+  ready.then((m) => { me = m; load(); });
+</script>

@@ -1,0 +1,9 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import EngagementList from '../components/EngagementList.astro';
+---
+<Layout title="Leads & estimates" nav="leads">
+  <a slot="actions" class="btn primary desktop-only" href="/new?type=lead"><Icon name="plus" />New lead</a>
+  <EngagementList mode="leads" />
+</Layout>

@@ -1,0 +1,116 @@
+---
+// Sheets for the password vault: unlock, add / edit a login, access log.
+import Icon from './Icon.astro';
+---
+<dialog class="sheet narrow" id="vUnlockSheet" aria-labelledby="vUnlockTitle">
+  <form id="vUnlockForm" novalidate>
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="vUnlockTitle">Unlock the vault</h2>
+      <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+    </div>
+    <div class="sheet-body stack">
+      <div class="v-lockart"><span><Icon name="lock" /></span></div>
+      <p class="muted center">Enter <b>your own CRM password</b> to view client passwords. The vault locks again after 10 minutes, and every view is logged.</p>
+      <label class="field"><span>Your password</span><input name="password" type="password" autocomplete="current-password" required /></label>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="vUnlockSave"><Icon name="key" />Unlock</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="vEditSheet" aria-labelledby="vEditTitle">
+  <form id="vEditForm" novalidate autocomplete="off">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="vEditTitle">Add portal login</h2>
+      <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-grid cols-2">
+        <div class="field picker span-2" data-picker id="vClientField">
+          <span>Client <em>*</em></span>
+          <input data-pick-input autocomplete="off" maxlength="160" placeholder="Search by name, GSTIN or PAN" />
+          <input type="hidden" name="client_id" />
+          <div class="picker-list" hidden></div>
+          <span class="hint" data-pick-hint></span>
+        </div>
+        <label class="field"><span>Portal <em>*</em></span><select name="portal" id="vPortal"></select></label>
+        <label class="field"><span>Label</span><input name="label" maxlength="120" placeholder="e.g. Karnataka GSTIN, Director – Ravi" /></label>
+        <label class="field"><span>User ID <em>*</em></span><input name="username" maxlength="160" autocomplete="off" spellcheck="false" /></label>
+        <label class="field"><span>Password <em data-pw-req>*</em></span>
+          <span class="v-pw"><input name="password" type="password" maxlength="200" autocomplete="new-password" spellcheck="false" /><button type="button" class="btn ghost icon" id="vPwToggle" aria-label="Show password"><Icon name="eye" /></button></span>
+          <span class="hint" id="vPwHint"></span></label>
+        <label class="field"><span>Password changed on</span><input name="changed_on" type="date" /></label>
+        <label class="field"><span>Registered mobile</span><input name="reg_mobile" type="tel" inputmode="tel" maxlength="20" /></label>
+        <label class="field span-2"><span>Registered email</span><input name="reg_email" type="email" maxlength="190" /></label>
+        <label class="field span-2"><span>Login URL</span><input name="url" maxlength="250" placeholder="Leave blank to use the portal's usual login page" /></label>
+        <div class="field span-2">
+          <span>Notes · security questions, DSC PIN, OTP person</span>
+          <textarea name="notes" rows="3" maxlength="2000" placeholder="Encrypted like the password"></textarea>
+          <button type="button" class="btn ghost v-notes-load" id="vNotesLoad" hidden><Icon name="lock" />Show saved notes to edit them</button>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn ghost danger" id="vDelete" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="vSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="sheet narrow" id="vLogSheet" aria-labelledby="vLogTitle">
+  <div class="sheet-grip"></div>
+  <div class="sheet-head">
+    <h2 id="vLogTitle">Access log</h2>
+    <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+  </div>
+  <div class="sheet-body"><ul class="timeline" id="vLogList"></ul></div>
+  <div class="sheet-foot"><button type="button" class="btn primary" data-close>Done</button></div>
+</dialog>
+
+<style is:global>
+  .v-lockart { display: grid; place-items: center; padding: 6px 0 2px; }
+  .v-lockart span { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); animation: pop .4s var(--ease-out); }
+  .v-lockart svg { width: 26px; height: 26px; }
+  .center { text-align: center; }
+  .v-pw { display: flex; gap: 6px; }
+  .v-pw input { flex: 1; min-width: 0; font-family: var(--mono, ui-monospace, monospace); }
+  .v-pw .btn.icon { width: 44px; min-height: 44px; flex: none; }
+  .v-notes-load { margin-top: 6px; justify-self: start; }
+  #vEditForm .sheet-foot .spacer { flex: 1; }
+  #vEditForm .sheet-foot .btn.ghost.danger { flex: none; }
+
+  /* Vault rows (shared by the vault page and the client page) */
+  .vlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .vrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); animation: fade-up .3s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 30ms); }
+  .vportal { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 11px; font-weight: 800; letter-spacing: .02em; color: var(--hue); background: color-mix(in srgb, var(--hue) 13%, var(--surface)); }
+  .vportal.p-gst { --hue: #13795b; } .vportal.p-it { --hue: #2f6fd6; } .vportal.p-traces { --hue: #7a4fd0; } .vportal.p-ewb, .vportal.p-einv { --hue: #0f7f8c; }
+  .vportal.p-mca { --hue: #b86e00; } .vportal.p-epfo, .vportal.p-esic { --hue: #c0396b; } .vportal.p-bank { --hue: #4b6475; } .vportal.p-pt, .vportal.p-other { --hue: #6b7280; }
+  .vmain { min-width: 0; }
+  .vmain .vt { font-weight: 650; }
+  .vmain .vt .muted { font-weight: 500; }
+  .vcreds { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 6px; }
+  .vfield { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  .vfield .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .vfield code { font-family: var(--mono, ui-monospace, monospace); font-size: 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; overflow-wrap: anywhere; transition: background .2s; }
+  .vfield code.shown { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }
+  .vfield .btn.icon { width: 32px; min-height: 32px; color: var(--muted); }
+  .vfield .btn.icon svg { width: 16px; height: 16px; }
+  .vfield .btn.icon:hover { color: var(--accent-text); }
+  .vmeta { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .vmeta a { color: var(--accent-text); font-weight: 600; text-decoration: none; }
+  .vmeta .old { color: var(--warn); font-weight: 600; }
+  .vnote { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 10%, var(--surface)); font-size: 13.5px; white-space: pre-line; overflow-wrap: anywhere; }
+  .vact { display: flex; gap: 4px; }
+  .vact .btn.icon { width: 34px; min-height: 34px; color: var(--muted); }
+  @media (max-width: 560px) {
+    .vrow { grid-template-columns: auto minmax(0, 1fr); }
+    .vact { grid-column: 1 / -1; justify-content: flex-end; margin-top: -6px; }
+    .vportal { width: 38px; height: 38px; }
+  }
+</style>

@@ -1,0 +1,174 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+---
+<Layout title="My profile" nav="me">
+  <div class="banner reveal first" id="firstBanner" hidden>
+    <Icon name="lock" /><span><b>Welcome!</b> Please set your own password to continue.</span>
+  </div>
+
+  <div class="hero card card-pad reveal">
+    <span class="avatar lg" data-initials></span>
+    <div class="hero-main">
+      <h1 data-user-name></h1>
+      <div class="row small muted"><span class="badge green" data-user-role></span><span id="meDesig"></span><span id="meEmail"></span></div>
+    </div>
+  </div>
+
+  <div class="grid two">
+    <section class="card reveal" id="pwCard">
+      <div class="card-head"><h2>Change password</h2></div>
+      <div class="card-body">
+        <form id="pwForm" class="stack" novalidate>
+          <input type="text" name="username" autocomplete="username" hidden />
+          <label class="field"><span id="curLabel">Current password</span><input name="current" type="password" autocomplete="current-password" required /></label>
+          <label class="field"><span>New password</span><input name="next" type="password" autocomplete="new-password" minlength="10" required />
+            <span class="hint">At least 10 characters with letters and numbers.</span>
+            <span class="meter" aria-hidden="true"><i id="meter"></i></span>
+          </label>
+          <label class="field"><span>Confirm new password</span><input name="confirm" type="password" autocomplete="new-password" required /></label>
+          <button class="btn primary" type="submit" id="pwSave">Update password</button>
+        </form>
+      </div>
+    </section>
+
+    <div class="stack" id="side">
+      <section class="card reveal">
+        <div class="card-head"><h2>Personal details</h2><button class="btn ghost" type="button" id="editProfile"><Icon name="edit" />Edit</button></div>
+        <div class="card-body"><dl class="details" id="details"><div><div class="skel line"></div></div></dl></div>
+      </section>
+
+      <section class="card reveal">
+        <ul class="list">
+          <li data-show="owner admin" hidden><a class="list-item" href="/team"><Icon name="team" /><span class="main-col t">Team</span></a></li>
+          <li data-show="owner admin" hidden><a class="list-item" href="/activity"><Icon name="activity" /><span class="main-col t">Activity log</span></a></li>
+          <li data-show="owner" hidden><a class="list-item" href="/settings"><Icon name="settings" /><span class="main-col t">Settings</span></a></li>
+          <li><button class="list-item signout" type="button" id="signOut"><Icon name="logout" /><span class="main-col t">Sign out</span></button></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <dialog class="sheet" id="profileSheet" aria-labelledby="profTitle">
+    <form id="profileForm" novalidate>
+      <div class="sheet-grip"></div>
+      <div class="sheet-head"><h2 id="profTitle">Personal details</h2><button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button></div>
+      <div class="sheet-body">
+        <div class="form-grid cols-2">
+          <label class="field"><span>Mobile</span><input name="mobile" type="tel" inputmode="tel" maxlength="20" /></label>
+          <label class="field"><span>Date of birth</span><input name="dob" type="date" /></label>
+          <label class="field span-2"><span>Address</span><textarea name="address" maxlength="500" rows="2"></textarea></label>
+          <label class="field"><span>Emergency contact name</span><input name="emergency_name" maxlength="120" /></label>
+          <label class="field"><span>Emergency contact number</span><input name="emergency_phone" type="tel" inputmode="tel" maxlength="20" /></label>
+        </div>
+        <p class="small muted note">Name, email, role and joining date are changed by the Owner or Admin.</p>
+      </div>
+      <div class="sheet-foot"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="profSave">Save</button></div>
+    </form>
+  </dialog>
+</Layout>
+
+<style>
+  .first { margin-bottom: 16px; }
+  .hero { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .hero-main { flex: 1; min-width: 200px; }
+  .hero h1 { margin-bottom: 6px; }
+  .list-item :global(svg) { width: 20px; height: 20px; color: var(--muted); flex: none; }
+  .signout { width: 100%; border: 0; background: none; cursor: pointer; text-align: left; color: var(--danger); font: inherit; }
+  .signout:hover { background: var(--danger-soft); }
+  .signout :global(svg) { color: var(--danger); }
+  .meter { display: block; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; border-radius: 2px; background: var(--danger); transition: width .35s var(--ease-out), background .35s; }
+  .note { margin-top: 14px; }
+  @media (max-width: 719px) { #pwCard { order: 2; } }
+  body.forced .grid.two { grid-template-columns: 1fr; max-width: 520px; }
+  body.forced #side, body.forced .tabbar, body.forced .sidebar .nav { display: none; }
+</style>
+
+<script>
+  import { ready, clearCachedUser } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, dateOnly, dateTime, openSheet, closeSheet, readForm, fillForm, submitting, showErrors, toast, toastError } from '../lib/ui';
+
+  const forced = new URLSearchParams(location.search).get('first') === '1';
+  const pwForm = document.getElementById('pwForm') as HTMLFormElement;
+  const profileForm = document.getElementById('profileForm') as HTMLFormElement;
+  const profileSheet = document.getElementById('profileSheet') as HTMLDialogElement;
+  const meter = document.getElementById('meter') as HTMLElement;
+  let profile: any = null;
+
+  (pwForm.elements.namedItem('next') as HTMLInputElement).addEventListener('input', (e) => {
+    const v = (e.target as HTMLInputElement).value;
+    let score = 0;
+    if (v.length >= 10) score++;
+    if (v.length >= 14) score++;
+    if (/[A-Za-z]/.test(v) && /\d/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v) || (/[a-z]/.test(v) && /[A-Z]/.test(v))) score++;
+    meter.style.width = `${(score / 4) * 100}%`;
+    meter.style.background = score <= 1 ? 'var(--danger)' : score === 2 ? 'var(--warn)' : 'var(--accent)';
+  });
+
+  function renderProfile(p: any) {
+    profile = p;
+    (document.getElementById('meDesig') as HTMLElement).textContent = p.designation || '';
+    (document.getElementById('meEmail') as HTMLElement).textContent = p.email;
+    (pwForm.elements.namedItem('username') as HTMLInputElement).value = p.email;
+    const rows: [string, string, boolean?][] = [
+      ['Mobile', esc(p.mobile || '—')],
+      ['Date of birth', esc(dateOnly(p.dob))],
+      ['Date of joining', esc(dateOnly(p.date_joined))],
+      ['Last sign-in', esc(p.last_login_at ? dateTime(p.last_login_at) : '—')],
+      ['Address', esc(p.address || '—'), true],
+      ['Emergency contact', esc([p.emergency_name, p.emergency_phone].filter(Boolean).join(' · ') || '—'), true],
+    ];
+    (document.getElementById('details') as HTMLElement).innerHTML =
+      rows.map(([k, v, w]) => `<div class="${w ? 'wide' : ''}"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  }
+
+  pwForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = readForm(pwForm);
+    if (v.next !== v.confirm) { showErrors(pwForm, { confirm: 'Passwords do not match.' }); return; }
+    const ok = await submitting(pwForm, document.getElementById('pwSave') as HTMLButtonElement, () =>
+      api('/auth/password', { method: 'POST', body: { current: v.current, next: v.next } }));
+    if (!ok) return;
+    pwForm.reset();
+    meter.style.width = '0';
+    clearCachedUser();
+    toast('Password updated. Other devices have been signed out.');
+    if (forced) setTimeout(() => location.replace('/'), 900);
+  });
+
+  document.getElementById('editProfile')!.addEventListener('click', () => {
+    profileForm.reset();
+    fillForm(profileForm, profile || {});
+    openSheet(profileSheet);
+  });
+  profileForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const res = await submitting(profileForm, document.getElementById('profSave') as HTMLButtonElement, () =>
+      api('/employees/me', { method: 'PUT', body: readForm(profileForm) }));
+    if (!res) return;
+    closeSheet(profileSheet);
+    renderProfile(res.item);
+    toast('Details saved');
+  });
+
+  document.getElementById('signOut')!.addEventListener('click', async () => {
+    try { await api('/auth/logout', { method: 'POST' }); } catch { /* signed out anyway */ }
+    clearCachedUser();
+    location.replace('/login');
+  });
+
+  ready.then(async (me) => {
+    if (forced || me.user.mustChangePassword) {
+      document.body.classList.add('forced');
+      document.getElementById('firstBanner')!.hidden = false;
+      (document.getElementById('curLabel') as HTMLElement).textContent = 'Temporary password';
+      (pwForm.elements.namedItem('current') as HTMLInputElement).focus();
+      if (!me.user.mustChangePassword) { document.body.classList.remove('forced'); document.getElementById('firstBanner')!.hidden = true; }
+      else return; // profile API is blocked until the password is changed
+    }
+    try { renderProfile((await api('/employees/me')).item); } catch (err) { toastError(err); }
+  });
+</script>

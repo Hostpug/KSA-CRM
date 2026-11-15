@@ -1,0 +1,9 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import NoticeList from '../components/NoticeList.astro';
+---
+<Layout title="Income tax notices" nav="it">
+  <a slot="actions" class="btn primary desktop-only" href="/notice-new?tax=it"><Icon name="plus" />New notice</a>
+  <NoticeList tax="it" />
+</Layout>

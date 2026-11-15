@@ -1,0 +1,87 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import EmployeeForm from '../components/EmployeeForm.astro';
+---
+<Layout title="Team" nav="team" roles="owner admin">
+  <button slot="actions" class="btn primary desktop-only" id="addEmp" type="button"><Icon name="plus" />Add employee</button>
+
+  <div class="page-head">
+    <p class="muted">Logins, roles and basic employee details.</p>
+  </div>
+
+  <div class="grid people" id="people">
+    <div class="card card-pad"><div class="skel line"></div><div class="skel line"></div></div>
+    <div class="card card-pad"><div class="skel line"></div><div class="skel line"></div></div>
+  </div>
+
+  <button class="fab" id="fab" type="button" aria-label="Add employee"><Icon name="plus" /></button>
+  <EmployeeForm />
+</Layout>
+
+<style is:global>
+  .people { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .person { display: flex; gap: 14px; align-items: center; padding: 16px; color: inherit; text-decoration: none !important; transition: transform .25s var(--ease-out), box-shadow .25s; }
+  .person:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .person.off { opacity: .6; }
+  .person .who { flex: 1; min-width: 0; }
+  .person b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .person .s { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .person .badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, initials, reveal, ago, openSheet, closeSheet, readForm, fillForm, submitting, toast, toastError, emptyState, ROLE_LABEL } from '../lib/ui';
+  import { limitRoles, showTempPassword } from '../lib/employeeForm';
+
+  const grid = document.getElementById('people')!;
+  const sheet = document.getElementById('empSheet') as HTMLDialogElement;
+  const form = document.getElementById('empForm') as HTMLFormElement;
+  let myRole = 'staff';
+
+  const roleBadge = (r: string) => `<span class="badge ${r === 'owner' ? 'green' : r === 'admin' ? 'blue' : ''}">${ROLE_LABEL[r]}</span>`;
+
+  async function load() {
+    try {
+      const d = await api('/employees');
+      grid.innerHTML = d.items.length ? d.items.map((e: any) => `
+        <a class="card person ${e.active ? '' : 'off'}" href="/member?id=${e.id}">
+          <span class="avatar lg">${esc(initials(e.name))}</span>
+          <span class="who">
+            <b>${esc(e.name)}</b>
+            <span class="s">${esc(e.designation || e.email)}</span>
+            <span class="badges">${roleBadge(e.role)}
+              ${!e.active ? '<span class="badge">Inactive</span>' : e.locked ? '<span class="badge red">Locked</span>' : e.must_change_pw ? '<span class="badge amber">Invite pending</span>' : ''}
+            </span>
+            <span class="s">${e.last_login_at ? `Last sign-in ${esc(ago(e.last_login_at))}` : 'Never signed in'}</span>
+          </span>
+        </a>`).join('') : emptyState('team', 'No employees yet');
+      reveal(grid);
+    } catch (err) { toastError(err); }
+  }
+
+  function openAdd() {
+    form.reset();
+    limitRoles(form, myRole);
+    fillForm(form, { role: 'staff' });
+    openSheet(sheet);
+  }
+  document.getElementById('addEmp')!.addEventListener('click', openAdd);
+  document.getElementById('fab')!.addEventListener('click', openAdd);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = readForm(form);
+    delete body.active;
+    const res = await submitting(form, document.getElementById('empSave') as HTMLButtonElement, () => api('/employees', { method: 'POST', body }));
+    if (!res) return;
+    closeSheet(sheet);
+    toast(`${res.item.name} added`);
+    setTimeout(() => showTempPassword(res.item.name, res.item.email, res.tempPassword), 260);
+    load();
+  });
+
+  ready.then((me) => { myRole = me.user.role; load(); });
+</script>

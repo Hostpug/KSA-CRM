@@ -1,0 +1,113 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import VaultSheets from '../components/VaultSheets.astro';
+---
+<Layout title="Password vault" nav="vault">
+  <button slot="actions" class="btn primary desktop-only" type="button" id="vAddTop"><Icon name="plus" />Add login</button>
+
+  <section class="card v-lockbar reveal" id="vLockbar">
+    <span class="vl-ic" id="vlIc"><Icon name="lock" /></span>
+    <div class="vl-txt"><b id="vlTitle">Vault is locked</b><span id="vlSub">Passwords stay hidden until you unlock with your own CRM password.</span></div>
+    <button class="btn primary" type="button" id="vlBtn"><Icon name="key" />Unlock</button>
+  </section>
+
+  <div class="toolbar v-toolbar">
+    <label class="search"><Icon name="search" /><input class="input" id="vQ" type="search" placeholder="Search client, GSTIN, PAN or user ID…" autocomplete="off" enterkeyhint="search" /></label>
+    <div class="segmented" id="vTabs" role="group" aria-label="Portal">
+      <button type="button" data-value="" aria-pressed="true">All</button>
+      <button type="button" data-value="gst" aria-pressed="false">GST</button>
+      <button type="button" data-value="it" aria-pressed="false">Income tax</button>
+      <button type="button" data-value="traces" aria-pressed="false">TRACES</button>
+      <button type="button" data-value="mca" aria-pressed="false">MCA</button>
+      <button type="button" data-value="other" aria-pressed="false">Others</button>
+    </div>
+  </div>
+  <p class="muted small count" id="vCount">&nbsp;</p>
+
+  <div id="vGroups"></div>
+  <div id="vEmpty"></div>
+
+  <p class="muted small v-foot"><Icon name="shield" />Passwords are encrypted (AES-256). Every view and copy is recorded with the person, time and IP address.</p>
+
+  <button class="fab" type="button" id="vAddFab" aria-label="Add login"><Icon name="plus" /></button>
+  <VaultSheets />
+</Layout>
+
+<style is:global>
+  .v-lockbar { display: flex; gap: 14px; align-items: center; padding: 14px 16px; margin-bottom: 16px; transition: background .3s, border-color .3s; }
+  .v-lockbar.open { background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+  .vl-ic { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); transition: background .3s, color .3s; }
+  .v-lockbar.open .vl-ic { background: var(--accent); color: var(--on-accent); animation: pop .35s var(--ease-out); }
+  .vl-ic svg { width: 20px; height: 20px; }
+  .vl-txt { flex: 1; min-width: 0; }
+  .vl-txt b { display: block; }
+  .vl-txt span { font-size: 13.5px; color: var(--muted); }
+  .v-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .v-toolbar .segmented { overflow-x: auto; max-width: 100%; }
+  .v-toolbar .segmented button { white-space: nowrap; }
+  .count { margin: 10px 2px; }
+  .vgroup { margin-bottom: 18px; animation: fade-up .3s var(--ease-out) both; }
+  .vgroup h3 { display: flex; align-items: baseline; gap: 8px; font-size: 15px; margin: 0 2px 8px; }
+  .vgroup h3 a { color: inherit; text-decoration: none; }
+  .vgroup h3 .muted { font-size: 12.5px; font-weight: 500; font-family: var(--mono, ui-monospace, monospace); }
+  .v-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .v-foot svg { width: 16px; height: 16px; flex: none; }
+  @media (max-width: 560px) { .v-lockbar { flex-wrap: wrap; } .v-lockbar .btn { width: 100%; } }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, debounce, segmented, skeletonRows, emptyState, toastError } from '../lib/ui';
+  import { initVault, rowsHTML, staggerRows, onLockChange, ensureUnlocked, lockNow, type VItem } from '../lib/vault';
+
+  let items: VItem[] = [];
+  const state = { q: '', portal: '' };
+  const groups = document.getElementById('vGroups')!;
+  const v = initVault(() => load());
+  v.bind(groups, () => items);
+
+  const canLog = () => ['owner', 'admin'].includes(document.body.dataset.role || '');
+  async function load() {
+    groups.innerHTML = `<div class="card">${skeletonRows(3)}</div>`;
+    const qs = new URLSearchParams({ q: state.q });
+    if (state.portal) qs.set('portal', state.portal);
+    try {
+      const d = await api(`/vault?${qs}`);
+      items = state.portal === 'other' ? d.items.filter((x: VItem) => !['gst', 'it', 'traces', 'mca'].includes(x.portal)) : d.items;
+      if (state.portal === 'other') { /* fetched all; filtered here */ }
+      const byClient = new Map<number, VItem[]>();
+      items.forEach((x) => { if (!byClient.has(x.client_id)) byClient.set(x.client_id, []); byClient.get(x.client_id)!.push(x); });
+      groups.innerHTML = [...byClient.values()].map((list) => `
+        <section class="vgroup"><h3><a href="/client?id=${list[0].client_id}">${esc(list[0].client_name)}</a><span class="muted">${list.length} login${list.length === 1 ? '' : 's'}</span></h3>
+          <ul class="vlist">${rowsHTML(list, { showClient: false, canLog: canLog() })}</ul></section>`).join('');
+      groups.querySelectorAll<HTMLElement>('.vlist').forEach(staggerRows);
+      document.getElementById('vCount')!.textContent = items.length ? `${items.length} login${items.length === 1 ? '' : 's'} · ${byClient.size} client${byClient.size === 1 ? '' : 's'}` : '';
+      document.getElementById('vEmpty')!.innerHTML = items.length ? '' : state.q || state.portal
+        ? emptyState('search', 'Nothing matches', 'Try another client, GSTIN, PAN or user ID.')
+        : emptyState('lock', 'No portal logins yet', document.body.dataset.role === 'staff' ? 'You see logins for clients you handle or have open work for.' : 'Add GST, income tax and other portal logins for your clients.');
+    } catch (err) { groups.innerHTML = ''; toastError(err); }
+  }
+
+  // Lock bar
+  const bar = document.getElementById('vLockbar')!;
+  const btn = document.getElementById('vlBtn') as HTMLButtonElement;
+  onLockChange((open, secs) => {
+    bar.classList.toggle('open', open);
+    document.getElementById('vlIc')!.innerHTML = open ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.8-1.2"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+    document.getElementById('vlTitle')!.textContent = open ? `Vault unlocked · locks in ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : 'Vault is locked';
+    document.getElementById('vlSub')!.textContent = open ? 'Passwords you reveal hide again after 30 seconds. Lock it when you step away.' : 'Passwords stay hidden until you unlock with your own CRM password.';
+    btn.innerHTML = open ? 'Lock now' : `${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.2-8.2M16 7l2 2"/></svg>'}Unlock`;
+    btn.className = open ? 'btn' : 'btn primary';
+  });
+  btn.addEventListener('click', () => (bar.classList.contains('open') ? lockNow() : ensureUnlocked()));
+
+  const q = document.getElementById('vQ') as HTMLInputElement;
+  q.addEventListener('input', debounce(() => { state.q = q.value.trim(); load(); }, 250));
+  segmented(document.getElementById('vTabs')!, (val) => { state.portal = val; load(); });
+  document.getElementById('vAddTop')!.addEventListener('click', () => v.open(null));
+  document.getElementById('vAddFab')!.addEventListener('click', () => v.open(null));
+  ready.then(load);
+</script>

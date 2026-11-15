@@ -1,0 +1,607 @@
+---
+// New lead / new task as a full page with steps (replaces the old pop-up sheet).
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import '../styles/wizard.css';
+---
+<Layout title="New lead" nav="leads">
+  <a slot="actions" class="btn ghost icon mobile-only" id="backBtn" href="/leads" aria-label="Back"><Icon name="back" /></a>
+
+  <div class="wiz">
+    <a class="back desktop-only small" id="backLink" href="/leads"><Icon name="back" /><span>Leads &amp; estimates</span></a>
+
+    <header class="wiz-head reveal">
+      <h1 id="wizTitle">New lead</h1>
+      <p class="muted" id="wizSub">Record an enquiry. You can prepare the estimate now or later.</p>
+    </header>
+
+    <ol class="wiz-steps reveal" id="wizSteps" aria-label="Steps"></ol>
+    <div class="wiz-bar" aria-hidden="true"><span id="wizFill"></span></div>
+
+    <form class="card wiz-card reveal" id="wizForm" novalidate autocomplete="off">
+      <!-- 1. Client -->
+      <section class="wiz-panel" data-panel="client">
+        <h2>Who is it for?</h2>
+        <div class="form-grid cols-2">
+          <div class="kind-switch span-2" role="radiogroup" aria-label="Type">
+            <label><input type="radio" name="kind" value="sales" checked /><span><b>New lead</b><span>Enquiry → estimate → sales order</span></span></label>
+            <label><input type="radio" name="kind" value="direct" /><span><b>New task</b><span>Work already received; skips estimate</span></span></label>
+          </div>
+          <div class="field picker span-2" data-picker>
+            <span>Client / prospect <em>*</em></span>
+            <input data-pick-input autocomplete="off" maxlength="160" placeholder="Search clients by name, GSTIN or PAN" />
+            <input type="hidden" name="client_id" />
+            <div class="picker-list" hidden></div>
+            <span class="hint" data-pick-hint></span>
+          </div>
+          <label class="field span-2" id="contactField"><span>Client contact</span><input name="contact" maxlength="250" placeholder="Name / phone / email" /></label>
+          <div class="prospect-box span-2" id="prospectBox" hidden>
+            <div class="pb-head">
+              <span class="pb-ic"><Icon name="clients" /></span>
+              <div><b>New client details</b><span>Saved with the lead. When it converts, the client record is created from these.</span></div>
+            </div>
+            <div class="form-grid cols-2">
+              <label class="field"><span>Business type</span>
+                <select name="prospect_type">
+                  <option value="">— Choose —</option><option value="individual">Individual</option><option value="proprietorship">Proprietorship</option>
+                  <option value="partnership">Partnership firm</option><option value="llp">LLP</option><option value="company">Company</option>
+                  <option value="trust">Trust / Society</option><option value="huf">HUF</option><option value="other">Other</option>
+                </select></label>
+              <label class="field"><span>Contact person</span><input name="prospect_person" maxlength="120" autocomplete="off" /></label>
+              <label class="field"><span>Mobile <em>*</em></span><input name="prospect_mobile" type="tel" inputmode="tel" maxlength="20" autocomplete="off" /></label>
+              <label class="field"><span>Email</span><input name="prospect_email" type="email" inputmode="email" maxlength="190" autocomplete="off" /></label>
+              <label class="field"><span>GSTIN</span><input name="prospect_gstin" class="mono" maxlength="15" autocapitalize="characters" autocomplete="off" placeholder="33ABCDE1234F1Z5" /><span class="hint" data-pgst-hint></span></label>
+              <label class="field"><span>PAN</span><input name="prospect_pan" class="mono" maxlength="10" autocapitalize="characters" autocomplete="off" placeholder="ABCDE1234F" /><span class="hint" data-ppan-hint></span></label>
+              <label class="field"><span>City</span><input name="prospect_city" maxlength="80" autocomplete="off" /></label>
+              <label class="field"><span>State</span><input name="prospect_state" maxlength="60" autocomplete="off" /></label>
+              <div class="banner warn span-2 dup-banner" id="dupBanner" hidden><Icon name="alert" /><span></span><button type="button" class="btn" id="dupUse">Use this client</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Service / work -->
+      <section class="wiz-panel" data-panel="service" hidden>
+        <h2 data-text-sales="What do they need?" data-text-direct="What is the work?">What do they need?</h2>
+        <div class="form-grid cols-2">
+          <div class="field span-2 cat-field">
+            <span>Category <em>*</em></span>
+            <div class="cat-grid" id="catGrid" role="radiogroup" aria-label="Category">
+              <div class="skel cat-skel"></div><div class="skel cat-skel"></div><div class="skel cat-skel"></div>
+            </div>
+          </div>
+          <div class="field span-2 svc-field" id="svcField" hidden>
+            <span>Service <em>*</em></span>
+            <div class="svc-chips" id="svcChips" role="group" aria-label="Services"></div>
+            <input name="service" maxlength="250" data-suggest="services" placeholder="Pick one above, or type your own" />
+            <span class="hint">Add the period if useful, e.g. “GST returns (monthly) · Oct 2026”.</span>
+          </div>
+          <label class="field" data-only="direct" hidden><span>Work received on <em>*</em></span><input name="work_date" type="date" /></label>
+          <label class="field" data-only="direct" hidden><span>Work due date</span><input name="due_date" type="date" /></label>
+          <label class="field"><span data-text-sales="Expected fee (₹)" data-text-direct="Agreed fee (₹)">Expected fee (₹)</span><input name="fee" inputmode="decimal" placeholder="25000" /></label>
+        </div>
+      </section>
+
+      <!-- 3a. Estimate (leads) -->
+      <section class="wiz-panel" data-panel="estimate" hidden>
+        <h2>Estimate <span class="muted small opt">optional</span></h2>
+        <p class="muted small lead-in">Add the fee lines now, or skip and prepare them later from the lead.</p>
+        <div class="lines" id="lines"></div>
+        <button class="btn ghost add-line" type="button" id="addLine"><Icon name="plus" />Add line</button>
+        <div class="lines-total"><span>Total (before GST)</span><span class="v" id="estTotal">₹0</span></div>
+        <div class="field" data-items-field><input type="hidden" name="items" /></div>
+        <div class="form-grid cols-2 est-more">
+          <label class="field span-2"><span>Notes / terms on the estimate</span><textarea name="estimate_notes" rows="2" maxlength="4000" placeholder="e.g. GST extra as applicable. 50% advance on confirmation."></textarea></label>
+          <label class="check span-2"><input type="checkbox" name="send_now" /> The estimate is already sent to the client</label>
+          <label class="field" data-send hidden><span>Estimate date <em>*</em></span><input name="estimate_date" type="date" /></label>
+          <label class="field" data-send hidden><span>Valid until</span><input name="estimate_valid_until" type="date" /></label>
+        </div>
+      </section>
+
+      <!-- 3b. Team (tasks) -->
+      <section class="wiz-panel" data-panel="team" hidden>
+        <h2>Who will handle it?</h2>
+        <div class="form-grid cols-2">
+          <label class="field"><span>Assigned to</span><select name="assigned_to" data-employees><option value="">— Not assigned —</option></select></label>
+          <label class="field"><span>Reviewer</span><select name="reviewer_id" data-employees><option value="">— Choose later —</option></select></label>
+        </div>
+        <p class="muted small team-note">You can assign it later too. It must be assigned before work starts.</p>
+      </section>
+
+      <!-- 4. Review -->
+      <section class="wiz-panel" data-panel="review" hidden>
+        <h2>Check and create</h2>
+        <div class="review" id="review"></div>
+        <label class="field notes"><span>Internal notes</span><textarea name="notes" rows="3" maxlength="4000" placeholder="Anything the team should know"></textarea></label>
+      </section>
+
+      <!-- Done -->
+      <section class="wiz-done" id="wizDone" hidden>
+        <span class="done-mark"><Icon name="check" /></span>
+        <h2 id="doneTitle">Created</h2>
+        <p class="muted" id="doneSub">Opening it…</p>
+      </section>
+
+      <div class="wiz-foot" id="wizFoot">
+        <button type="button" class="btn" id="wizBack">Cancel</button>
+        <span class="muted small step-of" id="stepOf"></span>
+        <button type="submit" class="btn primary" id="wizNext">Next<Icon name="chevron" /></button>
+      </div>
+    </form>
+  </div>
+</Layout>
+
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api, ApiError } from '../lib/api';
+  import { esc, icon, readForm, fillForm, showErrors, clearErrors, toastError, dateOnly } from '../lib/ui';
+  import { clientPicker } from '../lib/clientPicker';
+  import { loadEmployeeOptions, GST_STATES } from '../lib/clientForm';
+  import { rupees, todayIST } from '../lib/stages';
+  import { loadCatalog, catalog } from '../lib/services';
+
+  type Kind = 'sales' | 'direct';
+  const STEPS: Record<Kind, [string, string][]> = {
+    sales: [['client', 'Client'], ['service', 'Service'], ['estimate', 'Estimate'], ['review', 'Review']],
+    direct: [['client', 'Client'], ['service', 'Work'], ['team', 'Team'], ['review', 'Review']],
+  };
+
+  const params = new URLSearchParams(location.search);
+  const form = document.getElementById('wizForm') as HTMLFormElement;
+  const stepsEl = document.getElementById('wizSteps')!;
+  const nextBtn = document.getElementById('wizNext') as HTMLButtonElement;
+  const backBtn = document.getElementById('wizBack') as HTMLButtonElement;
+  const pickerRoot = form.querySelector('[data-picker]') as HTMLElement;
+  const picker = clientPicker(pickerRoot, { allowNew: true });
+  const lines = document.getElementById('lines')!;
+  const presetClient = Number(params.get('client')) || null;
+
+  let kind: Kind = params.get('type') === 'task' ? 'direct' : 'sales';
+  let step = 0;
+  let dirty = false;
+  let done = false;
+  const steps = () => STEPS[kind];
+  const panel = (name: string) => form.querySelector<HTMLElement>(`[data-panel="${name}"]`)!;
+  const returnTo = presetClient ? `/client?id=${presetClient}` : kind === 'direct' ? '/work' : '/leads';
+
+  // ---------- kind ----------
+  function applyKind() {
+    const lead = kind === 'sales';
+    form.querySelectorAll<HTMLInputElement>('input[name="kind"]').forEach((i) => { i.checked = i.value === kind; });
+    form.querySelectorAll<HTMLElement>('[data-only]').forEach((el) => { el.hidden = el.dataset.only !== kind; });
+    form.querySelectorAll<HTMLElement>('[data-text-sales]').forEach((el) => { el.textContent = lead ? el.dataset.textSales! : el.dataset.textDirect!; });
+    const title = lead ? 'New lead' : 'New task';
+    document.getElementById('wizTitle')!.textContent = title;
+    document.getElementById('wizSub')!.textContent = lead
+      ? 'Record an enquiry. You can prepare the estimate now or later.'
+      : 'Log work already received. It gets a sales order number straight away.';
+    document.title = `${title} · KSA`;
+    const tb = document.querySelector('.topbar .title');
+    if (tb) tb.textContent = title;
+    // Sidebar / tab bar highlight follows the type.
+    document.querySelectorAll<HTMLAnchorElement>('.nav a, .tabbar a').forEach((a) => {
+      const href = a.getAttribute('href');
+      if (href === '/leads' || href === '/work') a.toggleAttribute('aria-current', href === (lead ? '/leads' : '/work'));
+      if (a.hasAttribute('aria-current')) a.setAttribute('aria-current', 'page');
+    });
+    const back = presetClient ? returnTo : lead ? '/leads' : '/work';
+    (document.getElementById('backLink') as HTMLAnchorElement).href = back;
+    (document.getElementById('backBtn') as HTMLAnchorElement).href = back;
+    document.querySelector('#backLink span')!.textContent = presetClient ? 'Back to client' : lead ? 'Leads & estimates' : 'Sales orders & work';
+  }
+  form.querySelectorAll<HTMLInputElement>('input[name="kind"]').forEach((i) => i.addEventListener('change', () => {
+    kind = i.value as Kind;
+    applyKind();
+    renderSteps();
+  }));
+
+  // ---------- steps ----------
+  function renderSteps() {
+    const list = steps();
+    stepsEl.innerHTML = list.map(([, label], i) => `
+      <li class="${i < step ? 'done' : ''} ${i === step ? 'on' : ''}" ${i === step ? 'aria-current="step"' : ''}>
+        <button type="button" data-go="${i}" ${i < step ? '' : 'disabled'} aria-label="Step ${i + 1}: ${esc(label)}">
+          <span class="n">${i < step ? icon('check') : i + 1}</span><span class="l">${esc(label)}</span>
+        </button>
+      </li>`).join('');
+    document.getElementById('wizFill')!.style.setProperty('width', `${((step + 1) / list.length) * 100}%`);
+    document.getElementById('stepOf')!.textContent = `Step ${step + 1} of ${list.length}`;
+    const last = step === list.length - 1;
+    nextBtn.innerHTML = last ? (kind === 'direct' ? 'Create task' : 'Create lead') : `Next${icon('chevron')}`;
+    backBtn.textContent = step === 0 ? 'Cancel' : 'Back';
+  }
+
+  function go(to: number, focus = true) {
+    const list = steps();
+    to = Math.max(0, Math.min(to, list.length - 1));
+    const dir = to >= step ? 'fwd' : 'bwd';
+    form.querySelectorAll<HTMLElement>('.wiz-panel').forEach((p) => { p.hidden = true; p.classList.remove('fwd', 'bwd'); });
+    const p = panel(list[to][0]);
+    step = to;
+    if (list[to][0] === 'review') renderReview();
+    if (list[to][0] === 'team') loadEmployeeOptions(form);
+    p.hidden = false;
+    void p.offsetWidth;
+    p.classList.add(dir);
+    renderSteps();
+    if (focus) {
+      const first = p.querySelector<HTMLElement>('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textarea');
+      if (window.matchMedia('(min-width: 960px)').matches) first?.focus({ preventScroll: true });
+      const top = document.getElementById('wizSteps')!.getBoundingClientRect().top + scrollY - 80;
+      if (scrollY > top) scrollTo({ top, behavior: 'smooth' });
+    }
+  }
+  stepsEl.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]');
+    if (b) go(Number(b.dataset.go));
+  });
+
+  // ---------- estimate lines ----------
+  const isMoney = (v: string) => /^\d{1,11}(\.\d{1,2})?$/.test(v.trim());
+  function addLine(desc = '', amount = '') {
+    const row = document.createElement('div');
+    row.className = 'line';
+    row.innerHTML = `<input data-d maxlength="250" placeholder="Description of service" value="${esc(desc)}" aria-label="Description" />
+      <input data-amt class="amt" inputmode="decimal" placeholder="Amount" value="${esc(amount)}" aria-label="Amount (₹)" />
+      <button class="btn ghost icon" type="button" aria-label="Remove line" data-rm>${icon('close')}</button>`;
+    lines.appendChild(row);
+    return row;
+  }
+  const readItems = () => Array.from(lines.querySelectorAll('.line')).map((row) => ({
+    description: (row.querySelector('[data-d]') as HTMLInputElement).value.trim(),
+    amount: (row.querySelector('[data-amt]') as HTMLInputElement).value.trim(),
+  })).filter((it) => it.description || it.amount);
+  const itemsTotal = () => readItems().reduce((s, it) => s + (isMoney(it.amount) ? Math.round(Number(it.amount) * 100) : 0), 0) / 100;
+  const recalc = () => { document.getElementById('estTotal')!.textContent = rupees(itemsTotal()); };
+  lines.addEventListener('input', recalc);
+  lines.addEventListener('click', (e) => {
+    const rm = (e.target as HTMLElement).closest('[data-rm]');
+    if (!rm) return;
+    rm.closest('.line')!.remove();
+    if (!lines.children.length) addLine();
+    recalc();
+  });
+  document.getElementById('addLine')!.addEventListener('click', () => { (addLine().querySelector('[data-d]') as HTMLInputElement).focus(); });
+  addLine();
+
+  // First estimate line follows the service until the user edits it.
+  const serviceInput = form.elements.namedItem('service') as HTMLInputElement;
+  const feeInput = form.elements.namedItem('fee') as HTMLInputElement;
+  const syncFirstLine = () => {
+    const first = lines.querySelector('.line');
+    if (!first || readItems().length > 1) return;
+    const d = first.querySelector('[data-d]') as HTMLInputElement;
+    const a = first.querySelector('[data-amt]') as HTMLInputElement;
+    if (!d.dataset.touched) d.value = serviceInput.value.trim();
+    if (!a.dataset.touched) a.value = isMoney(feeInput.value) ? feeInput.value.trim() : '';
+    recalc();
+  };
+  lines.addEventListener('input', (e) => { (e.target as HTMLElement).dataset.touched = '1'; });
+
+  // ---------- category + service ----------
+  const catGrid = document.getElementById('catGrid')!;
+  const svcChips = document.getElementById('svcChips')!;
+  const svcField = document.getElementById('svcField')!;
+  const currentCat = () => form.querySelector<HTMLInputElement>('input[name="category"]:checked')?.value || '';
+  const listFor = (cat: string) => catalog().find((c) => c.name === cat)?.services || [];
+  const code = (n: string) => {
+    const words = n.trim().split(/\s+/);
+    return (words.length > 1 ? words.map((w) => w[0]).join('') : n.slice(0, 3)).slice(0, 3).toUpperCase();
+  };
+  const stagger = (el: Element) => Array.from(el.children).forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(Math.min(i, 16))));
+
+  function renderCats() {
+    const cats = catalog().some((c) => c.name.toLowerCase() === 'other') ? catalog() : [...catalog(), { name: 'Other', services: [] }];
+    catGrid.innerHTML = cats.map((c, i) => `
+      <label class="cat"><input type="radio" name="category" value="${esc(c.name)}" />
+        <span class="cat-code t${i % 6}">${esc(code(c.name))}</span>
+        <span class="cat-txt"><b>${esc(c.name)}</b><small>${c.services.length ? `${c.services.length} service${c.services.length === 1 ? '' : 's'}` : 'Type the service'}</small></span>
+      </label>`).join('');
+    stagger(catGrid);
+  }
+  const syncPressed = () => {
+    const v = serviceInput.value.trim();
+    svcChips.querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.s === v)));
+  };
+  function renderChips() {
+    const cat = currentCat();
+    svcField.hidden = !cat;
+    svcChips.innerHTML = listFor(cat).map((s) => `<button type="button" class="svc-chip" data-s="${esc(s)}" aria-pressed="false">${esc(s)}</button>`).join('');
+    stagger(svcChips);
+    syncPressed();
+  }
+  catGrid.addEventListener('change', () => {
+    // A service picked from another category no longer fits.
+    const v = serviceInput.value.trim();
+    if (v && catalog().some((c) => c.services.includes(v)) && !listFor(currentCat()).includes(v)) serviceInput.value = '';
+    clearErrors(form);
+    renderChips();
+    if (!listFor(currentCat()).length) serviceInput.focus();
+    else if (!window.matchMedia('(min-width: 960px)').matches) svcField.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  svcChips.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-s]');
+    if (!b) return;
+    serviceInput.value = b.dataset.s!;
+    dirty = true;
+    syncPressed();
+    serviceInput.closest('.field')?.classList.remove('invalid');
+    serviceInput.closest('.field')?.querySelector('.err')?.remove();
+  });
+  serviceInput.addEventListener('input', syncPressed);
+  serviceInput.addEventListener('change', syncPressed);
+  ready.then(() => loadCatalog().then(renderCats));
+
+  const sendNow = form.elements.namedItem('send_now') as HTMLInputElement;
+  sendNow.addEventListener('change', () => {
+    form.querySelectorAll<HTMLElement>('[data-send]').forEach((el) => { el.hidden = !sendNow.checked; });
+    if (sendNow.checked && !(form.elements.namedItem('estimate_date') as HTMLInputElement).value) fillForm(form, { estimate_date: todayIST() });
+  });
+
+  // ---------- validation per step ----------
+  function validate(name: string): Record<string, string> {
+    const v = readForm(form);
+    const e: Record<string, string> = {};
+    if (name === 'client') {
+      const pk = picker.get();
+      if (!pk.client_id && !pk.isNew) e.client_id = pk.name
+        ? 'Pick the client from the list, or choose “Add as a new client”.'
+        : 'Search for the client, or add a new one.';
+      if (isNewClient()) {
+        if (!v.prospect_mobile.trim()) e.prospect_mobile = 'Enter a mobile number to reach them.';
+        else if (!/^\+?[0-9][0-9 \-]{6,18}$/.test(v.prospect_mobile.trim())) e.prospect_mobile = 'Enter a valid mobile number.';
+        if (v.prospect_email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.prospect_email.trim())) e.prospect_email = 'Enter a valid email address.';
+        if (v.prospect_gstin && !GSTIN_RE.test(v.prospect_gstin)) e.prospect_gstin = 'GSTIN must be 15 characters, e.g. 33ABCDE1234F1Z5.';
+        if (v.prospect_pan && !PAN_RE.test(v.prospect_pan)) e.prospect_pan = 'PAN must look like ABCDE1234F.';
+        else if (v.prospect_pan && v.prospect_gstin && GSTIN_RE.test(v.prospect_gstin) && v.prospect_gstin.slice(2, 12) !== v.prospect_pan) e.prospect_pan = 'PAN does not match the GSTIN.';
+      }
+    }
+    if (name === 'service') {
+      if (!currentCat()) e.category = 'Choose a category.';
+      else if (!v.service.trim()) e.service = 'Pick a service or type one.';
+      if (v.fee.trim() && !isMoney(v.fee)) e.fee = 'Enter an amount like 25000 or 25000.50.';
+      if (kind === 'direct') {
+        if (!v.work_date) e.work_date = 'Enter the date the work was received.';
+        if (v.due_date && v.work_date && v.due_date < v.work_date) e.due_date = 'Due date cannot be before the work received date.';
+      }
+    }
+    if (name === 'estimate') {
+      const bad = readItems().findIndex((it) => !it.description || !isMoney(it.amount));
+      if (bad >= 0) e.items = `Line ${bad + 1}: enter a description and a valid amount.`;
+      if (v.send_now) {
+        if (!v.estimate_date) e.estimate_date = 'Enter the estimate date.';
+        if (v.estimate_valid_until && v.estimate_date && v.estimate_valid_until < v.estimate_date) e.estimate_valid_until = 'Valid until cannot be before the estimate date.';
+      }
+    }
+    return e;
+  }
+
+  function fail(errors: Record<string, string>) {
+    showErrors(form, errors);
+    form.classList.remove('shake');
+    void form.offsetWidth;
+    form.classList.add('shake');
+  }
+
+  // ---------- review ----------
+  const employeeName = (name: string) => {
+    const sel = form.elements.namedItem(name) as HTMLSelectElement;
+    return sel.value ? (sel.selectedOptions[0]?.textContent || '').split(' · ')[0] : '';
+  };
+  function renderReview() {
+    const v = readForm(form);
+    const { client_id, name } = picker.get();
+    const row = (k: string, val: string, i: number) => `<div class="rv-row">
+        <span class="k">${esc(k)}</span>
+        <span class="v">${val || '<span class="muted">—</span>'}</span>
+        <button type="button" class="btn ghost icon rv-edit" data-go="${i}" aria-label="Change ${esc(k.toLowerCase())}" title="Change">${icon('edit')}</button>
+      </div>`;
+    const who = `${esc(name)} ${client_id ? '<span class="badge green dot">Existing client</span>' : `<span class="badge amber">${kind === 'direct' ? 'New client · created on save' : 'New client · created when converted'}</span>`}`;
+    let html = row(kind === 'direct' ? 'Client' : 'Client / prospect', who, 0);
+    if (isNewClient()) {
+      html += row('Business type', esc(TYPE_LABEL[v.prospect_type] || ''), 0);
+      html += row('Contact', esc([v.prospect_person, v.prospect_mobile, v.prospect_email].filter(Boolean).join(' · ')), 0);
+      html += row('GSTIN / PAN', esc([v.prospect_gstin, v.prospect_pan].filter(Boolean).join(' · ')), 0);
+      html += row('City / state', esc([v.prospect_city, v.prospect_state].filter(Boolean).join(', ')), 0);
+    } else html += row('Contact', esc(v.contact), 0);
+    html += row('Service', `${currentCat() ? `<span class="badge">${esc(currentCat())}</span>` : ''}<span>${esc(v.service)}</span>`, 1);
+    if (kind === 'direct') {
+      html += row('Work received', esc(dateOnly(v.work_date)), 1);
+      html += row('Due date', v.due_date ? esc(dateOnly(v.due_date)) : '', 1);
+      html += row('Agreed fee', v.fee ? esc(rupees(v.fee)) : '', 1);
+      html += row('Assigned to', esc(employeeName('assigned_to')), 2);
+      html += row('Reviewer', esc(employeeName('reviewer_id')), 2);
+    } else {
+      html += row('Expected fee', v.fee ? esc(rupees(v.fee)) : '', 1);
+      const items = readItems();
+      html += row('Estimate', items.length
+        ? `${esc(rupees(itemsTotal()))} · ${items.length} line${items.length === 1 ? '' : 's'}${v.send_now ? ` · sent ${esc(dateOnly(v.estimate_date))}` : ' · not sent yet'}
+           <ul class="items-mini">${items.map((it) => `<li>${esc(it.description)} — ${esc(rupees(it.amount))}</li>`).join('')}</ul>`
+        : (v.send_now ? `Sent ${esc(dateOnly(v.estimate_date))}` : 'Later'), 2);
+    }
+    const el = document.getElementById('review')!;
+    el.innerHTML = html;
+    Array.from(el.children).forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(i)));
+  }
+  document.getElementById('review')!.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]');
+    if (b) go(Number(b.dataset.go));
+  });
+
+  // ---------- navigation ----------
+  backBtn.addEventListener('click', () => {
+    if (step > 0) { go(step - 1); return; }
+    location.href = (document.getElementById('backLink') as HTMLAnchorElement).href;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (done || nextBtn.classList.contains('loading')) return;
+    clearErrors(form);
+    const name = steps()[step][0];
+    const errors = validate(name);
+    if (Object.keys(errors).length) { fail(errors); return; }
+    if (name === 'service') syncFirstLine();
+    if (step < steps().length - 1) { go(step + 1); return; }
+    await create();
+  });
+
+  // Which step holds a field (for server-side errors).
+  const stepOf = (field: string) => {
+    const f = field === 'prospect_name' ? 'client_id' : field;
+    const p = form.querySelector(`[name="${CSS.escape(f)}"]`)?.closest<HTMLElement>('[data-panel]');
+    const i = p ? steps().findIndex(([n]) => n === p.dataset.panel) : -1;
+    return i;
+  };
+
+  async function create() {
+    const v = readForm(form);
+    const { client_id, name } = picker.get();
+    const body: Record<string, any> = { kind, client_id: client_id ?? '', prospect_name: name, contact: v.contact, category: currentCat(), service: v.service, fee: v.fee, notes: v.notes };
+    if (isNewClient()) {
+      for (const k of PROSPECT_KEYS) body[k] = v[k];
+      body.contact = [v.prospect_person, v.prospect_mobile, v.prospect_email].filter(Boolean).join(' · ');
+    }
+    if (kind === 'sales') {
+      const items = readItems();
+      body.stage = v.send_now ? 1 : 0;
+      body.items = items;
+      body.estimate_notes = v.estimate_notes;
+      if (!body.fee && items.length) body.fee = itemsTotal().toFixed(2);
+      if (v.send_now) { body.estimate_date = v.estimate_date; body.estimate_valid_until = v.estimate_valid_until; }
+    } else {
+      Object.assign(body, { stage: v.assigned_to ? 4 : 3, create_client: true, work_date: v.work_date, due_date: v.due_date, assigned_to: v.assigned_to, reviewer_id: v.reviewer_id });
+    }
+    nextBtn.classList.add('loading');
+    try {
+      const res = await api('/engagements', { method: 'POST', body });
+      done = true;
+      form.querySelectorAll<HTMLElement>('.wiz-panel').forEach((p) => { p.hidden = true; });
+      document.getElementById('wizFoot')!.hidden = true;
+      stepsEl.querySelectorAll('li').forEach((li) => { li.classList.remove('on'); li.classList.add('done'); li.querySelector('.n')!.innerHTML = icon('check'); });
+      document.getElementById('doneTitle')!.textContent = kind === 'direct' ? `Task created · ${res.item.so_no}` : `Lead created${res.item.estimate_no ? ` · ${res.item.estimate_no}` : ''}`;
+      document.getElementById('wizDone')!.hidden = false;
+      setTimeout(() => location.replace(`/engagement?id=${res.item.id}`), 900);
+    } catch (err) {
+      if (err instanceof ApiError && Object.keys(err.fields).length) {
+        const fields = { ...err.fields };
+        if (fields.prospect_name) { fields.client_id = fields.prospect_name; delete fields.prospect_name; }
+        const at = Math.min(...Object.keys(fields).map(stepOf).filter((i) => i >= 0));
+        if (Number.isFinite(at)) go(at, false);
+        fail(fields);
+      } else toastError(err);
+    } finally {
+      nextBtn.classList.remove('loading');
+    }
+  }
+
+  // Existing client chosen: offer its contact details; keep the hint right for tasks.
+  const contactInput = form.elements.namedItem('contact') as HTMLInputElement;
+  function fillContact(c: any) {
+    if (!contactInput.value.trim()) contactInput.value = [c.contact_person, c.mobile, c.email].filter(Boolean).join(' · ');
+  }
+  pickerRoot.addEventListener('client-picked', (e) => fillContact((e as CustomEvent).detail));
+
+  // ---------- new client details ----------
+  const PROSPECT_KEYS = ['prospect_type', 'prospect_pan', 'prospect_gstin', 'prospect_person', 'prospect_mobile', 'prospect_email', 'prospect_city', 'prospect_state'];
+  const TYPE_LABEL: Record<string, string> = { individual: 'Individual', proprietorship: 'Proprietorship', partnership: 'Partnership firm', llp: 'LLP', company: 'Company', trust: 'Trust / Society', huf: 'HUF', other: 'Other' };
+  const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+  const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+  // 4th character of a PAN tells the holder type.
+  const PAN_TYPE: Record<string, string> = { P: 'individual', C: 'company', F: 'partnership', H: 'huf', T: 'trust', A: 'other', B: 'other', G: 'other', J: 'other', L: 'other' };
+  const prospectBox = document.getElementById('prospectBox')!;
+  const contactField = document.getElementById('contactField')!;
+  const pf = (k: string) => form.elements.namedItem(k) as HTMLInputElement;
+  const isNewClient = () => picker.get().isNew;
+  let dupClient: any = null;
+  let typeAuto = false;
+
+  function syncProspect() {
+    const show = isNewClient();
+    if (prospectBox.hidden === show) {
+      prospectBox.hidden = !show;
+      if (show) { prospectBox.classList.remove('pb-in'); void prospectBox.offsetWidth; prospectBox.classList.add('pb-in'); }
+    }
+    contactField.hidden = show;
+  }
+  pickerRoot.querySelector('[data-pick-input]')!.addEventListener('input', syncProspect);
+  pickerRoot.addEventListener('client-picked', syncProspect);
+  pickerRoot.addEventListener('client-cleared', syncProspect);
+  pickerRoot.addEventListener('client-new', () => {
+    syncProspect();
+    clearErrors(form);
+    (form.elements.namedItem('prospect_type') as HTMLSelectElement).focus({ preventScroll: true });
+    prospectBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  const upper = (el: HTMLInputElement) => el.addEventListener('input', () => {
+    const pos = el.selectionStart;
+    el.value = el.value.toUpperCase().replace(/\s/g, '');
+    if (pos !== null) el.setSelectionRange(pos, pos);
+  });
+  upper(pf('prospect_gstin')); upper(pf('prospect_pan'));
+  pf('prospect_gstin').addEventListener('input', () => {
+    const v = pf('prospect_gstin').value;
+    const hint = form.querySelector('[data-pgst-hint]') as HTMLElement;
+    hint.textContent = v.length >= 2 && GST_STATES[v.slice(0, 2)] ? GST_STATES[v.slice(0, 2)] : '';
+    if (v.length >= 2 && GST_STATES[v.slice(0, 2)] && !pf('prospect_state').value) pf('prospect_state').value = GST_STATES[v.slice(0, 2)];
+    if (v.length === 15 && !pf('prospect_pan').value) { pf('prospect_pan').value = v.slice(2, 12); pf('prospect_pan').dispatchEvent(new Event('input')); }
+  });
+  pf('prospect_pan').addEventListener('input', () => {
+    const v = pf('prospect_pan').value;
+    const t = v.length >= 4 ? PAN_TYPE[v[3]] : '';
+    (form.querySelector('[data-ppan-hint]') as HTMLElement).textContent = t && v.length >= 4 ? `Holder type: ${TYPE_LABEL[t]}` : '';
+    const sel = form.elements.namedItem('prospect_type') as HTMLSelectElement;
+    // Follow the PAN unless the user picked the type themselves.
+    if (t && (!sel.value || typeAuto)) { sel.value = t; typeAuto = true; }
+    else if (!t && typeAuto) { sel.value = ''; }
+  });
+  (form.elements.namedItem('prospect_type') as HTMLSelectElement).addEventListener('change', () => { typeAuto = false; });
+  // Warn when the PAN / GSTIN already belongs to a saved client.
+  async function checkDuplicate() {
+    const ids = [pf('prospect_gstin').value, pf('prospect_pan').value].filter((x) => GSTIN_RE.test(x) || PAN_RE.test(x));
+    const banner = document.getElementById('dupBanner')!;
+    dupClient = null;
+    for (const id of ids) {
+      try {
+        const d = await api(`/clients?q=${encodeURIComponent(id)}&limit=5`);
+        dupClient = d.items.find((c: any) => c.gstin === id || c.pan === id) || null;
+      } catch { /* ignore */ }
+      if (dupClient) break;
+    }
+    banner.hidden = !dupClient;
+    if (dupClient) (banner.querySelector('span') as HTMLElement).textContent = `${dupClient.name} is already a client with this ${dupClient.gstin === pf('prospect_gstin').value ? 'GSTIN' : 'PAN'}.`;
+  }
+  pf('prospect_gstin').addEventListener('change', checkDuplicate);
+  pf('prospect_pan').addEventListener('change', checkDuplicate);
+  document.getElementById('dupUse')!.addEventListener('click', () => {
+    if (!dupClient) return;
+    picker.set(dupClient.id, dupClient.name);
+    fillContact(dupClient);
+    document.getElementById('dupBanner')!.hidden = true;
+    syncProspect();
+  });
+
+  // ---------- unsaved changes ----------
+  form.addEventListener('input', () => { dirty = true; });
+  window.addEventListener('beforeunload', (e) => { if (dirty && !done) e.preventDefault(); });
+
+  // ---------- start ----------
+  fillForm(form, { work_date: todayIST() });
+  applyKind();
+  go(0, false);
+  ready.then(async () => {
+    if (presetClient) {
+      try {
+        const { item } = await api(`/clients/${presetClient}`);
+        picker.set(item.id, item.name);
+        if (!(form.elements.namedItem('contact') as HTMLInputElement).value) {
+          fillContact(item);
+        }
+        go(1, false);
+      } catch { /* leave the picker empty */ }
+    }
+    if (window.matchMedia('(min-width: 960px)').matches) panel(steps()[step][0]).querySelector<HTMLElement>('input:not([type=hidden]):not([type=radio])')?.focus();
+  });
+</script>

@@ -1,0 +1,86 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+---
+<Layout title="Dashboard" nav="home">
+  <div class="page-head">
+    <div>
+      <h1 id="hello">Hello</h1>
+      <p id="today"></p>
+    </div>
+    <div class="row desktop-only">
+      <a class="btn" href="/new?type=lead"><Icon name="plus" />New lead</a>
+      <a class="btn primary" href="/new?type=task"><Icon name="plus" />New task</a>
+    </div>
+  </div>
+
+  <div class="grid stats" id="stats">
+    <a class="card stat" href="/leads"><span class="ic"><Icon name="funnel" /></span><div class="k">Lead pipeline</div><div class="v" data-count="leads">–</div></a>
+    <a class="card stat" href="/work?view=active"><span class="ic"><Icon name="briefcase" /></span><div class="k">Active work</div><div class="v" data-count="active">–</div></a>
+    <a class="card stat od" href="/work?view=overdue"><span class="ic"><Icon name="alert" /></span><div class="k">Work overdue</div><div class="v" data-count="overdue">–</div></a>
+    <a class="card stat" href="/work?view=delivered"><span class="ic"><Icon name="check" /></span><div class="k">Delivered · to bill</div><div class="v" data-count="delivered">–</div></a>
+  </div>
+
+  <div class="quick-new mobile-only">
+    <a class="btn" href="/new?type=lead"><Icon name="plus" />New lead</a>
+    <a class="btn primary" href="/new?type=task"><Icon name="plus" />New task</a>
+  </div>
+
+  <div class="grid two">
+    <section class="card">
+      <div class="card-head"><h2>My work</h2><a class="small" href="/work?view=mine">View all</a></div>
+      <ul class="list" id="myWork"><li><div class="skel row"></div></li><li><div class="skel row"></div></li></ul>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2 id="activityTitle">Recent activity</h2></div>
+      <div class="card-body"><ul class="timeline" id="activity"><li><div class="skel line"></div><div class="skel line"></div></li></ul></div>
+    </section>
+  </div>
+</Layout>
+
+<style>
+  .grid.two { margin-top: 16px; }
+  .stat { color: inherit; text-decoration: none !important; }
+  .od .ic { background: var(--danger-soft); color: var(--danger); }
+  .quick-new { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, ago, dateOnly, countUp, reveal, greeting, icon, emptyState, toastError } from '../lib/ui';
+  import { stageBadge } from '../lib/stages';
+
+  reveal(document.getElementById('stats'));
+
+  ready.then(async (me) => {
+    (document.getElementById('hello') as HTMLElement).textContent = `${greeting()}, ${me.user.name.split(' ')[0]}`;
+    (document.getElementById('today') as HTMLElement).textContent = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    }).format(new Date());
+    if (me.user.role === 'staff') (document.getElementById('activityTitle') as HTMLElement).textContent = 'My recent activity';
+
+    try {
+      const d = await api('/dashboard');
+      document.querySelectorAll<HTMLElement>('[data-count]').forEach((el) => countUp(el, d.counts[el.dataset.count!] ?? 0));
+
+      const mw = document.getElementById('myWork')!;
+      mw.innerHTML = d.myWork.length
+        ? d.myWork.map((w: any) => `
+            <li><a class="list-item" href="/engagement?id=${w.id}">
+              <span class="main-col"><span class="t">${esc(w.display_name)}</span>
+                <span class="s">${esc(w.service)}${w.due_date ? ` · <span class="${w.overdue ? 'overdue-text' : ''}">due ${esc(dateOnly(w.due_date))}</span>` : ''}</span></span>
+              ${w.review ? '<span class="badge violet">To review</span>' : stageBadge(w.stage)}
+              ${icon('chevron', 'chev')}
+            </a></li>`).join('')
+        : `<li>${emptyState('check', 'Nothing assigned to you', 'Work allotted to you will show up here.')}</li>`;
+      reveal(mw);
+
+      const act = document.getElementById('activity')!;
+      act.innerHTML = d.activity.length
+        ? d.activity.map((a: any) => `<li><div>${esc(a.summary || a.action)}</div><div class="when">${esc(a.actor_name || 'System')} · ${esc(ago(a.at))}</div></li>`).join('')
+        : '<li class="muted">Nothing yet.</li>';
+      reveal(act);
+    } catch (err) { toastError(err); }
+  });
+</script>

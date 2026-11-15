@@ -1,0 +1,60 @@
+---
+// Edit / stage-action sheet for an engagement. (New lead / task is the /new page.)
+import Icon from './Icon.astro';
+---
+<dialog class="sheet" id="engSheet" aria-labelledby="engTitle">
+  <form id="engForm" novalidate>
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="engTitle">Edit</h2>
+      <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+    </div>
+    <div class="sheet-body">
+      <div class="banner info" id="engHint" hidden><Icon name="info" /><span></span></div>
+      <div class="form-grid cols-2">
+        <div class="field picker span-2" data-f="client_pick" data-picker>
+          <span>Client <em>*</em></span>
+          <input data-pick-input autocomplete="off" maxlength="160" placeholder="Search existing clients or type a new name" />
+          <input type="hidden" name="client_id" />
+          <div class="picker-list" hidden></div>
+          <span class="hint" data-pick-hint></span>
+        </div>
+        <div class="span-2 form-grid cols-2 sheet-group" data-f="prospect">
+          <div class="form-section span-2">New client details</div>
+          <label class="field"><span>Business type</span>
+            <select name="prospect_type">
+              <option value="">— Choose —</option><option value="individual">Individual</option><option value="proprietorship">Proprietorship</option>
+              <option value="partnership">Partnership firm</option><option value="llp">LLP</option><option value="company">Company</option>
+              <option value="trust">Trust / Society</option><option value="huf">HUF</option><option value="other">Other</option>
+            </select></label>
+          <label class="field"><span>Contact person</span><input name="prospect_person" maxlength="120" /></label>
+          <label class="field"><span>Mobile</span><input name="prospect_mobile" type="tel" inputmode="tel" maxlength="20" /></label>
+          <label class="field"><span>Email</span><input name="prospect_email" type="email" maxlength="190" /></label>
+          <label class="field"><span>GSTIN</span><input name="prospect_gstin" class="mono" maxlength="15" /></label>
+          <label class="field"><span>PAN</span><input name="prospect_pan" class="mono" maxlength="10" /></label>
+          <label class="field"><span>City</span><input name="prospect_city" maxlength="80" /></label>
+          <label class="field"><span>State</span><input name="prospect_state" maxlength="60" /></label>
+        </div>
+        <label class="field" data-f="category"><span>Category</span><select name="category" data-categories></select></label>
+        <label class="field" data-f="service"><span>Service / assignment <em>*</em></span><input name="service" maxlength="250" data-suggest="services" /></label>
+        <label class="field" data-f="contact"><span>Client contact</span><input name="contact" maxlength="250" /></label>
+        <label class="field" data-f="fee"><span>Agreed fee (₹)</span><input name="fee" inputmode="decimal" /></label>
+        <label class="field" data-f="estimate_date"><span>Estimate date</span><input name="estimate_date" type="date" /></label>
+        <label class="field" data-f="estimate_valid_until"><span>Valid until</span><input name="estimate_valid_until" type="date" /></label>
+        <label class="field" data-f="so_date"><span>Sales order date</span><input name="so_date" type="date" /></label>
+        <label class="field" data-f="work_date"><span>Work received on</span><input name="work_date" type="date" /></label>
+        <label class="field" data-f="assigned_to"><span>Assigned to</span><select name="assigned_to" data-employees><option value="">— Not assigned —</option></select></label>
+        <label class="field" data-f="due_date"><span>Work due date</span><input name="due_date" type="date" /></label>
+        <label class="field" data-f="reviewer_id"><span>Reviewer</span><select name="reviewer_id" data-employees><option value="">— Choose —</option></select></label>
+        <label class="field" data-f="delivered_on"><span>Delivered on</span><input name="delivered_on" type="date" /></label>
+        <label class="field span-2" data-f="pending_info"><span>Information awaited from client</span><textarea name="pending_info" rows="3" maxlength="4000" placeholder="e.g. Purchase register for Oct, bank statements"></textarea></label>
+        <label class="field span-2" data-f="close_reason"><span>Reason</span><input name="close_reason" maxlength="250" placeholder="e.g. Fee not agreed, went with another firm" /></label>
+        <label class="field span-2" data-f="notes"><span>Internal notes</span><textarea name="notes" rows="3" maxlength="4000"></textarea></label>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="engSave">Save</button>
+    </div>
+  </form>
+</dialog>

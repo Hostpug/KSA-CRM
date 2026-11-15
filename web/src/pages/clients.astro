@@ -1,0 +1,153 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import ClientForm from '../components/ClientForm.astro';
+---
+<Layout title="Clients" nav="clients">
+  <a slot="actions" class="btn ghost icon mobile-only" href="/vault" aria-label="Password vault" title="Password vault"><Icon name="lock" /></a>
+  <button slot="actions" class="btn primary desktop-only" id="addClient" type="button"><Icon name="plus" />Add client</button>
+
+  <div class="toolbar">
+    <label class="search"><Icon name="search" /><input class="input" id="q" type="search" placeholder="Search name, PAN, GSTIN, mobile…" autocomplete="off" enterkeyhint="search" /></label>
+    <div class="segmented" id="status" role="group" aria-label="Status">
+      <button type="button" data-value="active" aria-pressed="true">Active</button>
+      <button type="button" data-value="inactive" aria-pressed="false">Inactive</button>
+      <button type="button" data-value="all" aria-pressed="false">All</button>
+    </div>
+    <label class="check small"><input type="checkbox" id="mine" /> Handled by me</label>
+  </div>
+
+  <p class="muted small count" id="count">&nbsp;</p>
+
+  <section class="card">
+    <div class="only-wide table-wrap">
+      <table class="table">
+        <thead><tr><th>Client</th><th>Type</th><th>PAN</th><th>GSTIN</th><th>Contact</th><th>Handled by</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <ul class="list only-narrow" id="cards"></ul>
+    <div id="empty"></div>
+    <div class="more" id="moreWrap" hidden><button class="btn" id="more" type="button">Load more</button></div>
+  </section>
+
+  <button class="fab" id="fab" type="button" aria-label="Add client"><Icon name="plus" /></button>
+  <ClientForm />
+</Layout>
+
+<style>
+  .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 4px 0 6px; }
+  .count { margin: 6px 2px 10px; }
+  .more { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--line); }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, icon, segmented, debounce, skeletonRows, emptyState, openSheet, closeSheet, readForm, fillForm, submitting, toast, toastError, CLIENT_TYPES } from '../lib/ui';
+  import { loadEmployeeOptions, wireClientForm } from '../lib/clientForm';
+
+  const params = new URLSearchParams(location.search);
+  const state = { q: '', status: 'active', mine: params.get('mine') === '1', offset: 0 };
+  const rows = document.getElementById('rows')!;
+  const cards = document.getElementById('cards')!;
+  const empty = document.getElementById('empty')!;
+  const count = document.getElementById('count')!;
+  const moreWrap = document.getElementById('moreWrap')!;
+  const mine = document.getElementById('mine') as HTMLInputElement;
+  mine.checked = state.mine;
+
+  const sheet = document.getElementById('clientSheet') as HTMLDialogElement;
+  const form = document.getElementById('clientForm') as HTMLFormElement;
+  wireClientForm(form);
+
+  let seq = 0;
+  async function load(append = false) {
+    const my = ++seq;
+    if (!append) { state.offset = 0; cards.innerHTML = skeletonRows(4); rows.innerHTML = ''; empty.innerHTML = ''; }
+    const qs = new URLSearchParams({ q: state.q, status: state.status, offset: String(state.offset), limit: '50' });
+    if (state.mine) qs.set('mine', '1');
+    try {
+      const d = await api(`/clients?${qs}`);
+      if (my !== seq) return; // a newer search started
+      if (!append) { rows.innerHTML = ''; cards.innerHTML = ''; }
+      const tr = d.items.map((c: any) => `
+        <tr data-href="/client?id=${c.id}">
+          <td><a href="/client?id=${c.id}"><b>${esc(c.name)}</b></a>${c.active ? '' : ' <span class="badge">Inactive</span>'}</td>
+          <td>${esc(CLIENT_TYPES[c.type] || c.type)}</td>
+          <td class="mono">${esc(c.pan || '—')}</td>
+          <td class="mono">${esc(c.gstin || '—')}</td>
+          <td>${esc(c.contact_person || '')}${c.mobile ? `<div class="muted small">${esc(c.mobile)}</div>` : ''}</td>
+          <td>${esc(c.assigned_name || '—')}</td>
+        </tr>`).join('');
+      const li = d.items.map((c: any) => `
+        <li><a class="list-item" href="/client?id=${c.id}">
+          <span class="avatar">${esc(c.name.slice(0, 1).toUpperCase())}</span>
+          <span class="main-col"><span class="t">${esc(c.name)}</span>
+          <span class="s">${esc(CLIENT_TYPES[c.type] || c.type)}${c.gstin ? ` · <span class="mono">${esc(c.gstin)}</span>` : c.pan ? ` · <span class="mono">${esc(c.pan)}</span>` : ''}</span></span>
+          ${c.active ? '' : '<span class="badge">Inactive</span>'}
+          ${icon('chevron', 'chev')}
+        </a></li>`).join('');
+      const startRow = rows.children.length;
+      const startCard = cards.children.length;
+      rows.insertAdjacentHTML('beforeend', tr);
+      cards.insertAdjacentHTML('beforeend', li);
+      revealFrom(rows, startRow);
+      revealFrom(cards, startCard);
+      state.offset += d.items.length;
+      count.textContent = d.total ? `${d.total.toLocaleString('en-IN')} client${d.total === 1 ? '' : 's'}` : '';
+      moreWrap.hidden = state.offset >= d.total;
+      if (!d.total) {
+        empty.innerHTML = state.q
+          ? emptyState('search', 'No matching clients', 'Try a different name, PAN or GSTIN.')
+          : emptyState('clients', 'No clients here yet', 'Tap + to add your first client.');
+      }
+    } catch (err) {
+      cards.innerHTML = '';
+      toastError(err);
+    }
+  }
+
+  function revealFrom(container: Element, start: number) {
+    Array.from(container.children).slice(start).forEach((el, i) => {
+      (el as HTMLElement).style.setProperty('--i', String(Math.min(i, 12)));
+      el.classList.add('reveal');
+    });
+  }
+
+  rows.addEventListener('click', (e) => {
+    const tr = (e.target as HTMLElement).closest('tr[data-href]') as HTMLElement | null;
+    if (tr && !(e.target as HTMLElement).closest('a')) location.href = tr.dataset.href!;
+  });
+
+  const q = document.getElementById('q') as HTMLInputElement;
+  q.addEventListener('input', debounce(() => { state.q = q.value.trim(); load(); }, 250));
+  segmented(document.getElementById('status')!, (v) => { state.status = v; load(); });
+  mine.addEventListener('change', () => { state.mine = mine.checked; load(); });
+  document.getElementById('more')!.addEventListener('click', () => load(true));
+
+  function openAdd() {
+    form.reset();
+    fillForm(form, { type: 'individual' });
+    loadEmployeeOptions(form);
+    openSheet(sheet);
+  }
+  document.getElementById('addClient')!.addEventListener('click', openAdd);
+  document.getElementById('fab')!.addEventListener('click', openAdd);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = readForm(form);
+    delete body.active;
+    const res = await submitting(form, document.getElementById('clientSave') as HTMLButtonElement, () => api('/clients', { method: 'POST', body }));
+    if (!res) return;
+    closeSheet(sheet);
+    toast(`${res.item.name} added`);
+    setTimeout(() => { location.href = `/client?id=${res.item.id}`; }, 350);
+  });
+
+  ready.then(() => {
+    load();
+    if (params.get('new') === '1') openAdd();
+  });
+</script>

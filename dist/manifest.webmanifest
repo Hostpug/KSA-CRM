@@ -1,0 +1,21 @@
+{
+  "name": "KSA Practice CRM",
+  "short_name": "KSA CRM",
+  "description": "Practice CRM for Karthik S & Associates, Chartered Accountants",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#10343a",
+  "theme_color": "#10343a",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Clients", "url": "/clients" },
+    { "name": "Add client", "url": "/clients?new=1" }
+  ]
+}

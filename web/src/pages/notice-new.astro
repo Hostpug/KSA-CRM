@@ -1,0 +1,495 @@
+---
+// New GST / income tax notice, step by step.
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import '../styles/wizard.css';
+---
+<Layout title="New notice" nav="gst">
+  <a slot="actions" class="btn ghost icon mobile-only" id="backBtn" href="/gst-notices" aria-label="Back"><Icon name="back" /></a>
+
+  <div class="wiz">
+    <a class="back desktop-only small" id="backLink" href="/gst-notices"><Icon name="back" /><span>GST notices</span></a>
+
+    <header class="wiz-head reveal">
+      <h1 id="wizTitle">New GST notice</h1>
+      <p class="muted">Record the notice the day it arrives. Due dates and reminders follow from here.</p>
+    </header>
+
+    <ol class="wiz-steps reveal" id="wizSteps" aria-label="Steps"></ol>
+    <div class="wiz-bar" aria-hidden="true"><span id="wizFill"></span></div>
+
+    <form class="card wiz-card reveal" id="wizForm" novalidate>
+      <!-- 1. Client -->
+      <section class="wiz-panel" data-panel="client">
+        <h2>Which client is it for?</h2>
+        <div class="form-grid cols-2">
+          <div class="field picker span-2" data-picker>
+            <span>Client <em>*</em></span>
+            <input data-pick-input autocomplete="off" maxlength="160" placeholder="Search by name, GSTIN or PAN" />
+            <input type="hidden" name="client_id" />
+            <div class="picker-list" hidden></div>
+            <span class="hint" data-pick-hint></span>
+          </div>
+          <label class="field"><span id="idLabel">GSTIN</span><input name="tax_id" class="mono" maxlength="15" autocapitalize="characters" /></label>
+          <div class="field hint-box"><span>&nbsp;</span><p class="muted small" id="idHint">Filled from the client record. Change it if the notice is for another registration.</p></div>
+        </div>
+        <p class="muted small new-client">Client not listed? <a href="/clients" id="addClient">Add the client first</a>, then come back.</p>
+      </section>
+
+      <!-- 2. Notice -->
+      <section class="wiz-panel" data-panel="notice" hidden>
+        <h2>Which notice is it?</h2>
+        <div class="field span-2">
+          <span>Notice / form <em>*</em></span>
+          <div class="ndd" id="typeDD">
+            <button type="button" class="ndd-btn" id="typeBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="typeList">
+              <span class="ndd-val" id="typeVal"><span class="ph">Choose the notice / form</span></span>
+              <Icon name="chevron" />
+            </button>
+            <div class="ndd-pop" id="typePop" hidden>
+              <label class="ndd-search"><Icon name="search" /><input id="typeQ" type="search" autocomplete="off" placeholder="Search form, section or subject…" aria-label="Search notice types" /></label>
+              <div class="ndd-list" id="typeList" role="listbox" aria-label="Notice types"></div>
+            </div>
+          </div>
+          <p class="muted small type-meta" id="typeMeta" hidden></p>
+          <input type="hidden" name="type_code" />
+        </div>
+        <div class="form-grid cols-2 ntype-more">
+          <div class="field span-2" data-it hidden>
+            <span>Act</span>
+            <div class="seg-mini" role="radiogroup" aria-label="Act">
+              <label><input type="radio" name="act" value="1961" checked /><span>Income-tax Act, 1961</span></label>
+              <label><input type="radio" name="act" value="2025" /><span>Income-tax Act, 2025</span></label>
+            </div>
+            <span class="hint">Sections were renumbered in the 2025 Act. Enter the section exactly as printed on the notice.</span>
+          </div>
+          <label class="field"><span>Section</span><input name="section" maxlength="60" /></label>
+          <label class="field"><span>Reference no. / DIN</span><input name="ref_no" maxlength="80" class="mono" placeholder="As printed on the notice" /></label>
+          <div class="field" id="periodField"><span id="periodLabel">Financial year(s)</span><input type="hidden" name="period" /></div>
+          <span></span>
+          <label class="field"><span>Notice date</span><input name="notice_date" type="date" /></label>
+          <label class="field"><span>Received on</span><input name="received_date" type="date" /></label>
+          <label class="field span-2 due-field"><span>Reply due <em>*</em></span><input name="next_due" type="date" />
+            <span class="hint" id="dueHint">Pick the notice type to suggest a date. Always use the date printed on the notice.</span></label>
+        </div>
+      </section>
+
+      <!-- 3. Details -->
+      <section class="wiz-panel" data-panel="details" hidden>
+        <h2>What is it about?</h2>
+        <div class="form-grid cols-2">
+          <label class="field span-2"><span>Issue / subject <em>*</em></span><textarea name="subject" rows="3" maxlength="500" placeholder="e.g. ITC mismatch between GSTR-2B and GSTR-3B for Apr–Mar"></textarea></label>
+          <div class="form-section span-2">Issuing officer</div>
+          <label class="field"><span>Officer name</span><input name="officer_name" maxlength="120" placeholder="As signed on the notice" autocomplete="off" /></label>
+          <label class="field"><span>Designation</span><input name="officer_designation" maxlength="120" data-officer-designation autocomplete="off" placeholder="Pick or type" /></label>
+          <label class="field span-2"><span>Location / jurisdiction</span><input name="officer_location" maxlength="160" data-officer-location autocomplete="off" /></label>
+          <div class="form-section span-2">Amount involved <span class="muted small">(optional)</span></div>
+          <label class="field"><span>Tax (₹)</span><input name="tax_amount" inputmode="decimal" placeholder="0" /></label>
+          <label class="field"><span>Interest (₹)</span><input name="interest_amount" inputmode="decimal" placeholder="0" /></label>
+          <label class="field"><span>Penalty (₹)</span><input name="penalty_amount" inputmode="decimal" placeholder="0" /></label>
+          <div class="field total-box"><span>Total disputed</span><b id="amtTotal">₹0</b></div>
+          <label class="field"><span>Personal hearing on</span><input name="hearing_date" type="date" />
+            <span class="hint">Only if the notice fixes a hearing date.</span></label>
+        </div>
+      </section>
+
+      <!-- 4. Team + review -->
+      <section class="wiz-panel" data-panel="review" hidden>
+        <h2>Who handles it?</h2>
+        <div class="form-grid cols-2">
+          <label class="field"><span>Assigned to</span><select name="assigned_to" data-employees><option value="">— Not assigned —</option></select></label>
+          <label class="field"><span>Reviewer</span><select name="reviewer_id" data-employees><option value="">— Choose later —</option></select></label>
+        </div>
+        <h2 class="review-h">How is it billed?</h2>
+        <div class="bill-opts" role="radiogroup" aria-label="Billing">
+          <label class="bill-opt"><input type="radio" name="bill" value="so" checked />
+            <span class="bo-ic"><Icon name="briefcase" /></span><span><b>Create a sales order</b><small>Billed once the reply is filed. An appeal gets its own SO later.</small></span></label>
+          <label class="bill-opt" id="billLinkOpt"><input type="radio" name="bill" value="link" />
+            <span class="bo-ic"><Icon name="check" /></span><span><b>Link to an existing SO</b><small id="billLinkHint">e.g. the client's yearly retainer</small></span></label>
+          <label class="bill-opt"><input type="radio" name="bill" value="none" />
+            <span class="bo-ic"><Icon name="close" /></span><span><b>No charge</b><small>Covered by a retainer or done as goodwill</small></span></label>
+        </div>
+        <div class="form-grid cols-2 bill-more">
+          <label class="field" data-bill="so"><span>Fee for the reply (₹)</span><input name="bill_fee" inputmode="decimal" placeholder="e.g. 5000" /><span class="hint">You can leave it blank and set it on the SO.</span></label>
+          <label class="field span-2" data-bill="link" hidden><span>Sales order <em>*</em></span><select name="bill_so"><option value="">— Choose —</option></select></label>
+          <label class="field span-2" data-bill="none" hidden><span>Reason</span><input name="bill_note" maxlength="160" placeholder="e.g. Covered under the monthly GST retainer" /></label>
+        </div>
+
+        <h2 class="review-h">Check and save</h2>
+        <div class="review" id="review"></div>
+        <label class="field notes"><span>Internal notes</span><textarea name="notes" rows="3" maxlength="4000" placeholder="e.g. Client says the GSTR-2B difference is due to a supplier filing late"></textarea></label>
+      </section>
+
+      <section class="wiz-done" id="wizDone" hidden>
+        <span class="done-mark"><Icon name="check" /></span>
+        <h2 id="doneTitle">Notice saved</h2>
+        <p class="muted">Opening it…</p>
+      </section>
+
+      <div class="wiz-foot" id="wizFoot">
+        <button type="button" class="btn" id="wizBack">Cancel</button>
+        <span class="muted small step-of" id="stepOf"></span>
+        <button type="submit" class="btn primary" id="wizNext">Next<Icon name="chevron" /></button>
+      </div>
+    </form>
+  </div>
+</Layout>
+
+<style is:global>
+  .wiz .new-client { margin: 12px 0 0; }
+  .wiz .hint-box p { margin: 10px 0 0; }
+  .type-meta { margin: 8px 2px 0; }
+  .ntype-more { margin-top: 18px; }
+  .seg-mini { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); flex-wrap: wrap; }
+  .seg-mini label { cursor: pointer; }
+  .seg-mini input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg-mini span { display: block; padding: 6px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+  .seg-mini input:checked + span { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
+  .seg-mini input:focus-visible + span { outline: 2px solid var(--accent); }
+  .due-field input { max-width: 260px; }
+  .total-box b { font-size: 20px; margin-top: 8px; display: block; font-variant-numeric: tabular-nums; }
+  .review-h { margin-top: 22px !important; }
+  .bill-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .bill-opt { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--surface); transition: border-color .2s, background .2s, box-shadow .2s; }
+  .bill-opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .bill-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+  .bill-opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bill-opt:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+  .bill-opt .bo-ic { flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); }
+  .bill-opt:has(input:checked) .bo-ic { background: var(--accent); color: var(--on-accent); }
+  .bill-opt .bo-ic svg { width: 16px; height: 16px; }
+  .bill-opt b { display: block; font-size: 14px; }
+  .bill-opt small { font-size: 12px; color: var(--muted); }
+  .bill-more { margin-top: 12px; }
+  @media (max-width: 720px) { .bill-opts { grid-template-columns: 1fr; } }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api, ApiError } from '../lib/api';
+  import { esc, icon, readForm, fillForm, showErrors, clearErrors, toastError, dateOnly } from '../lib/ui';
+  import { clientPicker } from '../lib/clientPicker';
+  import { loadEmployeeOptions } from '../lib/clientForm';
+  import { rupees, todayIST } from '../lib/stages';
+  import { loadMeta, TAX, addDays, DESIGNATIONS, officerLine, type NType, type Tax } from '../lib/notices';
+  import { suggest } from '../lib/suggest';
+  import { yearPicker } from '../lib/yearPicker';
+
+  const params = new URLSearchParams(location.search);
+  const tax: Tax = params.get('tax') === 'it' ? 'it' : 'gst';
+  const T = TAX[tax];
+  const presetClient = Number(params.get('client')) || null;
+  const STEPS: [string, string][] = [['client', 'Client'], ['notice', 'Notice'], ['details', 'Details'], ['review', 'Team & save']];
+
+  const form = document.getElementById('wizForm') as HTMLFormElement;
+  const stepsEl = document.getElementById('wizSteps')!;
+  const nextBtn = document.getElementById('wizNext') as HTMLButtonElement;
+  const backBtn = document.getElementById('wizBack') as HTMLButtonElement;
+  const pickerRoot = form.querySelector('[data-picker]') as HTMLElement;
+  const picker = clientPicker(pickerRoot, { newLabel: 'Not a saved client' });
+  const $ = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+  let types: NType[] = [];
+  let step = 0;
+  let dirty = false;
+  let done = false;
+  let dueTouched = false;
+
+  // ---------- page set-up for GST vs income tax ----------
+  const back = presetClient ? `/client?id=${presetClient}` : T.list;
+  (document.getElementById('backLink') as HTMLAnchorElement).href = back;
+  (document.getElementById('backBtn') as HTMLAnchorElement).href = back;
+  document.querySelector('#backLink span')!.textContent = presetClient ? 'Back to client' : T.title;
+  const title = `New ${tax === 'gst' ? 'GST' : 'income tax'} notice`;
+  document.getElementById('wizTitle')!.textContent = title;
+  document.title = `${title} · KSA CRM`;
+  const tb = document.querySelector('.topbar .title'); if (tb) tb.textContent = title;
+  document.getElementById('idLabel')!.textContent = T.idLabel;
+  document.getElementById('periodLabel')!.textContent = T.period;
+  yearPicker(document.getElementById('periodField')!, tax);
+  ($('officer_location')).placeholder = T.locationPh;
+  suggest($('officer_designation'), DESIGNATIONS[tax]);
+  form.querySelectorAll<HTMLElement>('[data-it]').forEach((el) => { el.hidden = tax !== 'it'; });
+  if (tax === 'it') {
+    document.querySelectorAll('.nav a, .tabbar a').forEach((a) => { if (a.getAttribute('href') === '/gst-notices' && a.closest('.nav')) a.removeAttribute('aria-current'); });
+    document.querySelectorAll('.nav a[href="/it-notices"]').forEach((a) => a.setAttribute('aria-current', 'page'));
+  }
+  fillForm(form, { received_date: todayIST() });
+
+  // ---------- steps ----------
+  function renderSteps() {
+    stepsEl.innerHTML = STEPS.map(([, label], i) => `
+      <li class="${i < step ? 'done' : ''} ${i === step ? 'on' : ''}" ${i === step ? 'aria-current="step"' : ''}>
+        <button type="button" data-go="${i}" ${i < step ? '' : 'disabled'} aria-label="Step ${i + 1}: ${esc(label)}">
+          <span class="n">${i < step ? icon('check') : i + 1}</span><span class="l">${esc(label)}</span>
+        </button></li>`).join('');
+    document.getElementById('wizFill')!.style.setProperty('width', `${((step + 1) / STEPS.length) * 100}%`);
+    document.getElementById('stepOf')!.textContent = `Step ${step + 1} of ${STEPS.length}`;
+    nextBtn.innerHTML = step === STEPS.length - 1 ? 'Save notice' : `Next${icon('chevron')}`;
+    backBtn.textContent = step === 0 ? 'Cancel' : 'Back';
+  }
+  function go(to: number) {
+    to = Math.max(0, Math.min(to, STEPS.length - 1));
+    const dir = to >= step ? 'fwd' : 'bwd';
+    form.querySelectorAll<HTMLElement>('.wiz-panel').forEach((p) => { p.hidden = true; p.classList.remove('fwd', 'bwd'); });
+    step = to;
+    const p = form.querySelector<HTMLElement>(`[data-panel="${STEPS[to][0]}"]`)!;
+    if (STEPS[to][0] === 'review') { loadEmployeeOptions(form).then(renderReview); loadSOs(); applyBill(); renderReview(); }
+    p.hidden = false; void p.offsetWidth; p.classList.add(dir);
+    renderSteps();
+    const top = stepsEl.getBoundingClientRect().top + scrollY - 80;
+    if (scrollY > top) scrollTo({ top, behavior: 'smooth' });
+  }
+  stepsEl.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]'); if (b) go(Number(b.dataset.go)); });
+
+  // ---------- client ----------
+  const idInput = $('tax_id');
+  idInput.addEventListener('input', () => { idInput.value = idInput.value.toUpperCase().replace(/\s/g, ''); });
+  function useClient(c: any) {
+    const id = tax === 'gst' ? c.gstin : c.pan;
+    idInput.value = id || '';
+    document.getElementById('idHint')!.textContent = id
+      ? 'Filled from the client record. Change it if the notice is for another registration.'
+      : `No ${T.idLabel} on the client record. Enter it from the notice.`;
+  }
+  pickerRoot.addEventListener('client-picked', (e) => useClient((e as CustomEvent).detail));
+
+  // ---------- notice type ----------
+  const typeOf = (code: string) => types.find((t) => t.code === code);
+  const typeBtn = document.getElementById('typeBtn') as HTMLButtonElement;
+  const typePop = document.getElementById('typePop')!;
+  const typeList = document.getElementById('typeList')!;
+  const typeQ = document.getElementById('typeQ') as HTMLInputElement;
+  const codeLabel = (c: string) => c.replace('-OTHER', '');
+  let shownTypes: NType[] = [];
+  let activeT = -1;
+
+  const hl = (text: string, q: string) => {
+    if (!q) return esc(text);
+    const at = text.toLowerCase().indexOf(q);
+    return at < 0 ? esc(text) : `${esc(text.slice(0, at))}<mark>${esc(text.slice(at, at + q.length))}</mark>${esc(text.slice(at + q.length))}`;
+  };
+  function renderTypes() {
+    const q = typeQ.value.trim().toLowerCase();
+    shownTypes = types.filter((t) => !q || [t.code, t.name, t.section, t.reply, t.group].join(' ').toLowerCase().includes(q));
+    const current = $('type_code').value;
+    let html = '';
+    let group = '';
+    shownTypes.forEach((t, i) => {
+      if (t.group !== group) { group = t.group; html += `<div class="ndd-group" role="presentation">${esc(group)}</div>`; }
+      html += `<button type="button" class="ndd-opt ${i === activeT ? 'on' : ''}" role="option" data-i="${i}" aria-selected="${t.code === current}">
+        <span class="ncode">${hl(codeLabel(t.code), q)}</span><b>${hl(t.name, q)}</b>
+        <small>${hl([t.section, t.reply && `Reply: ${t.reply}`].filter(Boolean).join(' · '), q)}</small></button>`;
+    });
+    typeList.innerHTML = html || '<div class="ndd-empty">No notice type matches. Choose “Other”.</div>';
+    typeList.querySelector('.ndd-opt.on')?.scrollIntoView({ block: 'nearest' });
+  }
+  function openTypes() {
+    typePop.hidden = false;
+    typeBtn.setAttribute('aria-expanded', 'true');
+    typeQ.value = '';
+    activeT = Math.max(0, types.findIndex((t) => t.code === $('type_code').value));
+    renderTypes();
+    typeList.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'center' });
+    typePop.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    typeQ.focus({ preventScroll: true });
+  }
+  function closeTypes(focusBtn = false) {
+    typePop.hidden = true;
+    typeBtn.setAttribute('aria-expanded', 'false');
+    if (focusBtn) typeBtn.focus();
+  }
+  function pickType(code: string) {
+    const t = typeOf(code)!;
+    const prev = typeOf($('type_code').value);
+    $('type_code').value = code;
+    if (!$('section').value || $('section').value === prev?.section) $('section').value = t.section;
+    document.getElementById('typeVal')!.innerHTML = `<span class="ncode">${esc(codeLabel(t.code))}</span><b>${esc(t.name)}</b>`;
+    const meta = document.getElementById('typeMeta')!;
+    meta.hidden = false;
+    meta.textContent = [t.group, t.section, `Reply: ${t.reply}`, `usually ${t.days} days`].filter(Boolean).join(' · ');
+    dirty = true;
+    clearErrors(form);
+    suggestDue();
+  }
+  typeBtn.addEventListener('click', () => (typePop.hidden ? openTypes() : closeTypes()));
+  typeBtn.addEventListener('keydown', (e) => { if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && typePop.hidden) { e.preventDefault(); openTypes(); } });
+  typeQ.addEventListener('input', () => { activeT = 0; renderTypes(); });
+  typeQ.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { activeT = Math.min(activeT + 1, shownTypes.length - 1); renderTypes(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { activeT = Math.max(activeT - 1, 0); renderTypes(); e.preventDefault(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (shownTypes[activeT]) { pickType(shownTypes[activeT].code); closeTypes(true); } }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeTypes(true); }
+    else if (e.key === 'Tab') closeTypes();
+  });
+  typeList.addEventListener('mousedown', (e) => e.preventDefault());
+  typeList.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-i]');
+    if (b) { pickType(shownTypes[Number(b.dataset.i)].code); closeTypes(true); }
+  });
+  document.addEventListener('click', (e) => { if (!typePop.hidden && !(e.target as HTMLElement).closest('#typeDD')) closeTypes(); });
+  function suggestDue() {
+    const t = typeOf($('type_code').value);
+    const hint = document.getElementById('dueHint')!;
+    if (!t) return;
+    const from = $('notice_date').value || $('received_date').value || todayIST();
+    const sug = addDays(from, t.days);
+    if (!dueTouched) $('next_due').value = sug;
+    hint.textContent = `Typical time for ${t.code}: ${t.days} days from the ${$('notice_date').value ? 'notice date' : 'date received'} (${dateOnly(sug)}). Always use the date printed on the notice.`;
+  }
+  ['notice_date', 'received_date'].forEach((n) => $(n).addEventListener('change', suggestDue));
+  $('next_due').addEventListener('input', () => { dueTouched = true; });
+
+  // ---------- amounts ----------
+  const isMoney = (v: string) => /^\d{1,13}(\.\d{1,2})?$/.test(v.trim());
+  const amounts = ['tax_amount', 'interest_amount', 'penalty_amount'];
+  const total = () => amounts.reduce((s, n) => s + (isMoney($(n).value) ? Math.round(Number($(n).value) * 100) : 0), 0) / 100;
+  amounts.forEach((n) => $(n).addEventListener('input', () => { document.getElementById('amtTotal')!.textContent = rupees(total()); }));
+
+  // ---------- validation ----------
+  function validate(name: string) {
+    const v = readForm(form);
+    const e: Record<string, string> = {};
+    if (name === 'client') {
+      if (!picker.get().client_id) e.client_id = picker.get().name ? 'Choose a saved client from the list (add new clients in Clients first).' : 'Choose the client.';
+      if (v.tax_id && tax === 'gst' && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(v.tax_id)) e.tax_id = 'GSTIN must be 15 characters, e.g. 33ABCDE1234F1Z5.';
+      if (v.tax_id && tax === 'it' && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(v.tax_id)) e.tax_id = 'PAN must look like ABCDE1234F.';
+    }
+    if (name === 'notice') {
+      if (!v.type_code) e.type_code = 'Choose the notice type.';
+      if (v.notice_date && v.notice_date > todayIST()) e.notice_date = 'Notice date cannot be in the future.';
+      if (v.notice_date && v.received_date && v.received_date < v.notice_date) e.received_date = 'Received on cannot be before the notice date.';
+      if (!v.next_due) e.next_due = 'Enter the reply due date from the notice.';
+    }
+    if (name === 'review') {
+      if (billChoice() === 'so' && v.bill_fee.trim() && !isMoney(v.bill_fee)) e.bill_fee = 'Numbers only, e.g. 5000';
+      if (billChoice() === 'link' && !v.bill_so) e.bill_so = 'Choose the sales order.';
+    }
+    if (name === 'details') {
+      if (!v.subject.trim()) e.subject = 'Describe the issue in a line or two.';
+      amounts.forEach((n) => { if (v[n].trim() && !isMoney(v[n])) e[n] = 'Numbers only, e.g. 125000.50'; });
+    }
+    return e;
+  }
+  function fail(errors: Record<string, string>) {
+    showErrors(form, errors);
+    form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
+  }
+
+  // ---------- billing ----------
+  const billChoice = () => form.querySelector<HTMLInputElement>('input[name="bill"]:checked')?.value || 'so';
+  const billSel = form.elements.namedItem('bill_so') as HTMLSelectElement;
+  let soLoadedFor: number | null = null;
+  function applyBill() {
+    form.querySelectorAll<HTMLElement>('[data-bill]').forEach((el) => { el.hidden = el.dataset.bill !== billChoice(); });
+  }
+  form.querySelectorAll<HTMLInputElement>('input[name="bill"]').forEach((i) => i.addEventListener('change', () => { applyBill(); renderReview(); }));
+  async function loadSOs() {
+    const cid = picker.get().client_id;
+    if (!cid || soLoadedFor === cid) return;
+    soLoadedFor = cid;
+    const linkInput = form.querySelector<HTMLInputElement>('input[name="bill"][value="link"]')!;
+    try {
+      const d = await api(`/engagements?client_id=${cid}&view=active&limit=100`);
+      const sos = d.items.filter((g: any) => g.so_no);
+      billSel.innerHTML = '<option value="">— Choose —</option>' + sos.map((g: any) => `<option value="${g.id}">${esc(g.so_no)} · ${esc(g.service)}</option>`).join('');
+      linkInput.disabled = !sos.length;
+      document.getElementById('billLinkHint')!.textContent = sos.length ? `${sos.length} open sales order${sos.length === 1 ? '' : 's'} for this client` : 'This client has no open sales order';
+      if (!sos.length && billChoice() === 'link') { form.querySelector<HTMLInputElement>('input[name="bill"][value="so"]')!.checked = true; applyBill(); }
+    } catch { linkInput.disabled = true; }
+  }
+
+  // ---------- review ----------
+  const empName = (n: string) => { const s = form.elements.namedItem(n) as HTMLSelectElement; return s.value ? (s.selectedOptions[0]?.textContent || '').split(' · ')[0] : ''; };
+  function renderReview() {
+    const v = readForm(form);
+    const t = typeOf(v.type_code);
+    const row = (k: string, val: string, i: number) => `<div class="rv-row"><span class="k">${esc(k)}</span>
+      <span class="v">${val || '<span class="muted">—</span>'}</span>
+      <button type="button" class="btn ghost icon rv-edit" data-go="${i}" aria-label="Change ${esc(k.toLowerCase())}" title="Change">${icon('edit')}</button></div>`;
+    const amt = total();
+    const el = document.getElementById('review')!;
+    el.innerHTML = [
+      row('Client', `${esc(picker.get().name)}${v.tax_id ? ` <span class="mono small muted">${esc(v.tax_id)}</span>` : ''}`, 0),
+      row('Notice', t ? `<span class="form-tag">${esc(t.code)}</span><span>${esc(t.name)}</span>` : '', 1),
+      row('Section', esc([v.section, tax === 'it' ? `IT Act ${form.querySelector<HTMLInputElement>('input[name=act]:checked')?.value}` : ''].filter(Boolean).join(' · ')), 1),
+      row('Reference / DIN', esc(v.ref_no), 1),
+      row(T.period, esc(v.period), 1),
+      row('Reply due', v.next_due ? `<b>${esc(dateOnly(v.next_due))}</b>` : '', 1),
+      row('Issue', esc(v.subject), 2),
+      row('Officer', esc(officerLine(v)), 2),
+      row('Amount involved', amt ? esc(rupees(amt)) : '', 2),
+      row('Hearing', v.hearing_date ? esc(dateOnly(v.hearing_date)) : '', 2),
+      row('Assigned / reviewer', esc([empName('assigned_to'), empName('reviewer_id')].filter(Boolean).join(' · ')), 3),
+      row('Billing', esc(billChoice() === 'so' ? `New sales order${isMoney(v.bill_fee) ? ` · fee ${rupees(v.bill_fee)}` : ''}`
+        : billChoice() === 'link' ? (billSel.selectedOptions[0]?.value ? `Linked to ${billSel.selectedOptions[0].textContent}` : 'Link to a sales order')
+          : `No charge${v.bill_note ? ` · ${v.bill_note}` : ''}`), 3),
+    ].join('');
+    Array.from(el.children).forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(i)));
+  }
+  document.getElementById('review')!.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]'); if (b) go(Number(b.dataset.go)); });
+
+  // ---------- navigation + save ----------
+  backBtn.addEventListener('click', () => { if (step > 0) go(step - 1); else location.href = (document.getElementById('backLink') as HTMLAnchorElement).href; });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (done || nextBtn.classList.contains('loading')) return;
+    clearErrors(form);
+    const errors = validate(STEPS[step][0]);
+    if (Object.keys(errors).length) { fail(errors); return; }
+    if (step < STEPS.length - 1) { go(step + 1); return; }
+    await save();
+  });
+  const stepOfField = (f: string) => {
+    const el = form.querySelector(`[name="${CSS.escape(f)}"]`)?.closest<HTMLElement>('[data-panel]');
+    return el ? STEPS.findIndex(([n]) => n === el.dataset.panel) : -1;
+  };
+  async function save() {
+    const v = readForm(form);
+    const body: Record<string, any> = { tax, client_id: picker.get().client_id };
+    for (const k of ['tax_id', 'type_code', 'section', 'ref_no', 'period', 'subject', 'officer_name', 'officer_designation', 'officer_location', 'tax_amount', 'interest_amount', 'penalty_amount', 'notice_date', 'received_date', 'next_due', 'hearing_date', 'assigned_to', 'reviewer_id', 'notes']) body[k] = v[k];
+    if (tax === 'it') body.act = form.querySelector<HTMLInputElement>('input[name=act]:checked')?.value;
+    nextBtn.classList.add('loading');
+    try {
+      const res = await api('/notices', { method: 'POST', body });
+      done = true;
+      // Billing is a separate call; the notice is saved even if this fails.
+      const choice = billChoice();
+      const billBody = choice === 'so' ? { action: 'create', purpose: 'reply', fee: v.bill_fee.trim() }
+        : choice === 'link' ? { action: 'link', engagement_id: Number(v.bill_so) }
+          : { action: 'no_charge', on: true, note: v.bill_note };
+      let billNote = '';
+      try {
+        const b = await api(`/notices/${res.item.id}/billing`, { method: 'POST', body: billBody });
+        billNote = b.created ? ` · ${b.created.so_no} created` : choice === 'link' ? ' · linked to the SO' : '';
+      } catch (err) { toastError(err); }
+      form.querySelectorAll<HTMLElement>('.wiz-panel').forEach((p) => { p.hidden = true; });
+      document.getElementById('wizFoot')!.hidden = true;
+      stepsEl.querySelectorAll('li').forEach((li) => { li.classList.remove('on'); li.classList.add('done'); li.querySelector('.n')!.innerHTML = icon('check'); });
+      document.getElementById('doneTitle')!.textContent = `${res.item.type_code} saved · reply due ${dateOnly(res.item.next_due)}${billNote}`;
+      document.getElementById('wizDone')!.hidden = false;
+      setTimeout(() => location.replace(`/notice?id=${res.item.id}`), 900);
+    } catch (err) {
+      if (err instanceof ApiError && Object.keys(err.fields).length) {
+        const at = Math.min(...Object.keys(err.fields).map(stepOfField).filter((i) => i >= 0));
+        if (Number.isFinite(at)) go(at);
+        fail(err.fields);
+      } else toastError(err);
+    } finally { nextBtn.classList.remove('loading'); }
+  }
+  form.addEventListener('input', () => { dirty = true; });
+  // Keep the summary in step with edits made on the last step.
+  const refreshReview = (e: Event) => { if (STEPS[step][0] === 'review' && !(e.target as HTMLElement).closest('#review')) renderReview(); };
+  form.addEventListener('change', refreshReview);
+  form.addEventListener('input', (e) => { if ((e.target as HTMLElement).matches('[name=bill_fee], [name=bill_note]')) refreshReview(e); });
+  window.addEventListener('beforeunload', (e) => { if (dirty && !done) e.preventDefault(); });
+
+  // ---------- start ----------
+  renderSteps();
+  ready.then(async () => {
+    try { types = (await loadMeta()).types[tax]; renderTypes(); } catch (err) { toastError(err); }
+    if (presetClient) {
+      try { const { item } = await api(`/clients/${presetClient}`); picker.set(item.id, item.name); useClient(item); } catch { /* ignore */ }
+    }
+    if (window.matchMedia('(min-width: 960px)').matches) (pickerRoot.querySelector('[data-pick-input]') as HTMLInputElement).focus();
+  });
+</script>

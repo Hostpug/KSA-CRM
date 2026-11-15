@@ -1,0 +1,9 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import EngagementList from '../components/EngagementList.astro';
+---
+<Layout title="Sales orders & work" nav="work">
+  <a slot="actions" class="btn primary desktop-only" href="/new?type=task"><Icon name="plus" />New task</a>
+  <EngagementList mode="work" />
+</Layout>

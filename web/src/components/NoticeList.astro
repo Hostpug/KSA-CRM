@@ -1,0 +1,166 @@
+---
+import Icon from './Icon.astro';
+interface Props { tax: 'gst' | 'it' }
+const { tax } = Astro.props;
+const tabs = [['open', 'Open'], ['due', 'Due in 7 days'], ['overdue', 'Overdue'], ['hearing', 'Hearings'], ['mine', 'Mine'], ['unbilled', 'Not billed'], ['closed', 'Closed'], ['all', 'All']];
+---
+<div class="ntc-list" data-tax={tax}>
+  <nav class="tax-switch reveal" aria-label="Notice type">
+    <a href="/gst-notices" aria-current={tax === 'gst' ? 'page' : undefined}><Icon name="file" />GST</a>
+    <a href="/it-notices" aria-current={tax === 'it' ? 'page' : undefined}><Icon name="landmark" />Income tax</a>
+  </nav>
+
+  <div class="grid stats ntc-stats">
+    <button class="card stat" type="button" data-view="open"><span class="ic"><Icon name="file" /></span><div class="k">Open notices</div><div class="v" data-sum="open">–</div></button>
+    <button class="card stat" type="button" data-view="due"><span class="ic"><Icon name="calendar" /></span><div class="k">Due in 7 days</div><div class="v" data-sum="due7">–</div></button>
+    <button class="card stat danger-stat" type="button" data-view="overdue"><span class="ic"><Icon name="alert" /></span><div class="k">Overdue</div><div class="v" data-sum="overdue">–</div></button>
+    <button class="card stat" type="button" data-view="hearing"><span class="ic"><Icon name="team" /></span><div class="k">Hearings · 14 days</div><div class="v" data-sum="hearings">–</div></button>
+  </div>
+  <p class="muted small disputed" id="ntcDisputed"></p>
+
+  <div class="toolbar">
+    <label class="search"><Icon name="search" /><input class="input" id="ntcQ" type="search" placeholder={tax === 'gst' ? 'Search client, GSTIN, form, DIN, FY…' : 'Search client, PAN, section, DIN, AY…'} autocomplete="off" enterkeyhint="search" /></label>
+    <div class="segmented" id="ntcTabs" role="group" aria-label="View">
+      {tabs.map(([v, l], i) => <button type="button" data-value={v} aria-pressed={i === 0 ? 'true' : 'false'}>{l}</button>)}
+    </div>
+  </div>
+  <p class="muted small count" id="ntcCount">&nbsp;</p>
+
+  <section class="card">
+    <div class="only-wide table-wrap">
+      <table class="table">
+        <thead><tr><th>Client &amp; notice</th><th>{tax === 'gst' ? 'FY' : 'AY'}</th><th>Next action</th><th>Assigned</th><th>Stage</th></tr></thead>
+        <tbody id="ntcRows"></tbody>
+      </table>
+    </div>
+    <ul class="list only-narrow" id="ntcCards"></ul>
+    <div id="ntcEmpty"></div>
+    <div class="more" id="ntcMoreWrap" hidden><button class="btn" id="ntcMore" type="button">Load more</button></div>
+  </section>
+
+  <a class="fab" href={`/notice-new?tax=${tax}`} aria-label="New notice"><Icon name="plus" /></a>
+</div>
+
+<style is:global>
+  .tax-switch { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); margin-bottom: 14px; }
+  .tax-switch a { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 9px; font-weight: 650; font-size: 14px; color: var(--muted); text-decoration: none; transition: background .2s, color .2s; }
+  .tax-switch a svg { width: 17px; height: 17px; }
+  .tax-switch a[aria-current='page'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
+  .ntc-stats { margin-bottom: 6px; }
+  .ntc-list .disputed { margin: 0 2px 14px; min-height: 18px; }
+  .ntc-list .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .ntc-list .segmented { overflow-x: auto; max-width: 100%; }
+  .ntc-list .segmented button { white-space: nowrap; }
+  .ntc-list .count { margin: 10px 2px; }
+  .ntc-list .more { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--line); }
+  .ntc-next { font-size: 13.5px; }
+  .ntc-next .due { display: block; font-size: 12.5px; color: var(--muted); }
+  .ntc-card .row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 5px; }
+  .ntc-card .s { white-space: normal; }
+  .so-tag { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+  .so-tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .so-tag.mono { color: var(--accent-text); background: var(--accent-soft); }
+  button.stat { text-align: left; font: inherit; color: inherit; cursor: pointer; }
+  .stat.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+  .danger-stat .ic { background: var(--danger-soft); color: var(--danger); }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, icon, dateOnly, segmented, debounce, skeletonRows, emptyState, countUp, toastError } from '../lib/ui';
+  import { rupees } from '../lib/stages';
+  import { noticeBadge, dueInfo, type Tax } from '../lib/notices';
+
+  const root = document.querySelector('.ntc-list') as HTMLElement;
+  const tax = root.dataset.tax as Tax;
+  const params = new URLSearchParams(location.search);
+  const state = { q: '', view: params.get('view') || 'open', offset: 0 };
+  const rows = document.getElementById('ntcRows')!;
+  const cards = document.getElementById('ntcCards')!;
+  const empty = document.getElementById('ntcEmpty')!;
+  const count = document.getElementById('ntcCount')!;
+  const moreWrap = document.getElementById('ntcMoreWrap')!;
+  const tabs = document.getElementById('ntcTabs')!;
+  tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === state.view)));
+
+  const billTag = (n: any) => n.so_nos ? `<span class="so-tag mono">${esc(n.so_nos)}</span>`
+    : n.no_charge ? '<span class="so-tag none">No charge</span>' : '<span class="so-tag warn">Not billed</span>';
+  const next = (n: any) => {
+    const d = dueInfo(n);
+    if (n.stage === 8) return `<span class="muted">${esc(n.outcome || 'Closed')}</span>`;
+    return `<div class="ntc-next">${esc(n.next_action || '—')}${n.next_due ? `<span class="due ${d.tone}">${esc(dateOnly(n.next_due))} · ${esc(d.text)}</span>` : ''}</div>`;
+  };
+
+  let seq = 0;
+  async function load(append = false) {
+    const my = ++seq;
+    if (!append) { state.offset = 0; cards.innerHTML = skeletonRows(4); rows.innerHTML = ''; empty.innerHTML = ''; }
+    const qs = new URLSearchParams({ tax, q: state.q, view: state.view, offset: String(state.offset), limit: '50' });
+    try {
+      const d = await api(`/notices?${qs}`);
+      if (my !== seq) return;
+      const items = d.items as any[];
+      if (!append) { rows.innerHTML = ''; cards.innerHTML = ''; }
+      rows.insertAdjacentHTML('beforeend', items.map((n) => `
+        <tr data-href="/notice?id=${n.id}">
+          <td><a href="/notice?id=${n.id}"><b>${esc(n.client_name)}</b></a>
+            <div class="muted small"><span class="form-tag">${esc(n.type_code)}</span>${esc(n.subject)}</div></td>
+          <td>${esc(n.period || '—')}</td>
+          <td>${next(n)}</td>
+          <td>${esc(n.assigned_name || '—')}<div>${billTag(n)}</div></td>
+          <td>${noticeBadge(n.stage)}</td>
+        </tr>`).join(''));
+      cards.insertAdjacentHTML('beforeend', items.map((n) => {
+        const d = dueInfo(n);
+        return `<li><a class="list-item ntc-card" href="/notice?id=${n.id}">
+          <span class="main-col">
+            <span class="t">${esc(n.client_name)}</span>
+            <span class="s"><span class="form-tag">${esc(n.type_code)}</span>${esc(n.subject)}</span>
+            <span class="row2">${noticeBadge(n.stage)}
+              ${n.next_due && n.stage !== 8 ? `<span class="small due ${d.tone}">${esc(d.text)}</span>` : ''}
+              ${n.period ? `<span class="small muted">${esc(n.period)}</span>` : ''}${billTag(n)}
+            </span>
+          </span>${icon('chevron', 'chev')}</a></li>`;
+      }).join(''));
+      [rows, cards].forEach((c) => Array.from(c.children).slice(-items.length || 0).forEach((el, i) => {
+        if (!items.length) return;
+        (el as HTMLElement).style.setProperty('--i', String(Math.min(i, 12)));
+        el.classList.add('reveal');
+      }));
+      state.offset += items.length;
+      count.textContent = d.total ? `${d.total.toLocaleString('en-IN')} notice${d.total === 1 ? '' : 's'}` : '';
+      moreWrap.hidden = state.offset >= d.total;
+      if (!d.total) {
+        empty.innerHTML = state.q
+          ? emptyState('search', 'Nothing matches', 'Try another client, form or reference number.')
+          : state.view === 'open' ? emptyState('file', 'No open notices', 'Tap + to record a notice the moment it arrives.')
+            : emptyState('check', 'Nothing in this view', '');
+      }
+    } catch (err) { cards.innerHTML = ''; toastError(err); }
+  }
+
+  async function loadSummary() {
+    try {
+      const s = await api(`/notices/summary?tax=${tax}`);
+      document.querySelectorAll<HTMLElement>('[data-sum]').forEach((el) => countUp(el, s[el.dataset.sum!] ?? 0));
+      document.getElementById('ntcDisputed')!.textContent = Number(s.disputed) > 0 ? `Amount under dispute in open notices: ${rupees(s.disputed)}` : '';
+    } catch { /* keep dashes */ }
+  }
+  function highlight() {
+    document.querySelectorAll<HTMLElement>('[data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === state.view));
+  }
+
+  rows.addEventListener('click', (e) => {
+    const tr = (e.target as HTMLElement).closest('tr[data-href]') as HTMLElement | null;
+    if (tr && !(e.target as HTMLElement).closest('a')) location.href = tr.dataset.href!;
+  });
+  const q = document.getElementById('ntcQ') as HTMLInputElement;
+  q.addEventListener('input', debounce(() => { state.q = q.value.trim(); load(); }, 250));
+  segmented(tabs, (v) => { state.view = v; highlight(); load(); history.replaceState(null, '', `?view=${v}`); });
+  document.querySelectorAll<HTMLElement>('[data-view]').forEach((b) => b.addEventListener('click', () => {
+    (tabs.querySelector(`button[data-value="${b.dataset.view}"]`) as HTMLButtonElement | null)?.click();
+  }));
+  document.getElementById('ntcMore')!.addEventListener('click', () => load(true));
+  ready.then(() => { highlight(); load(); loadSummary(); });
+</script>

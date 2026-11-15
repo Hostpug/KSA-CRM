@@ -1,0 +1,9 @@
+node_modules/
+web/.astro/
+.env
+*.log
+.DS_Store
+tmp/
+.vault-key
+deploy/
+Instruction MD Files/

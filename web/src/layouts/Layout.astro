@@ -1,0 +1,91 @@
+---
+import '../styles/global.css';
+import Icon from '../components/Icon.astro';
+
+interface Props {
+  title: string;
+  /** nav key to highlight */
+  nav?: 'home' | 'clients' | 'leads' | 'work' | 'gst' | 'it' | 'vault' | 'team' | 'me' | 'activity' | 'settings';
+  /** public pages (login) render without the app shell */
+  bare?: boolean;
+  /** roles allowed on this page; others are redirected home */
+  roles?: string;
+}
+const { title, nav, bare = false, roles = '' } = Astro.props;
+const cur = (k: string) => (nav === k ? 'page' : undefined);
+---
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#10343a" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="KSA CRM" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <title>{title} · KSA CRM</title>
+  </head>
+  <body data-roles={roles || undefined} data-bare={bare ? '1' : undefined}>
+    {bare ? (
+      <slot />
+    ) : (
+      <div class="shell">
+        <aside class="sidebar">
+          <a class="brand" href="/">
+            <span class="brand-mark">KS</span>
+            <span><span class="brand-name" data-firm>Karthik S &amp; Associates</span><br /><span class="brand-sub">Practice CRM</span></span>
+          </a>
+          <nav class="nav" aria-label="Main">
+            <a href="/" aria-current={cur('home')}><Icon name="home" />Dashboard</a>
+            <a href="/leads" aria-current={cur('leads')}><Icon name="funnel" />Leads &amp; estimates</a>
+            <a href="/work" aria-current={cur('work')}><Icon name="briefcase" />Sales orders &amp; work</a>
+            <a href="/clients" aria-current={cur('clients')}><Icon name="clients" />Clients</a>
+            <a href="/vault" aria-current={cur('vault')}><Icon name="lock" />Password vault</a>
+            <div class="nav-label">Notices</div>
+            <a href="/gst-notices" aria-current={cur('gst')}><Icon name="file" />GST notices</a>
+            <a href="/it-notices" aria-current={cur('it')}><Icon name="landmark" />Income tax notices</a>
+            <a href="/team" aria-current={cur('team')} data-show="owner admin" hidden><Icon name="team" />Team</a>
+            <div class="nav-label" data-show="owner admin" hidden>Admin</div>
+            <a href="/activity" aria-current={cur('activity')} data-show="owner admin" hidden><Icon name="activity" />Activity log</a>
+            <a href="/settings" aria-current={cur('settings')} data-show="owner" hidden><Icon name="settings" />Settings</a>
+          </nav>
+          <div class="sidebar-foot">
+            <a class="user-chip" href="/me" aria-current={cur('me')}>
+              <span class="avatar" data-initials>··</span>
+              <span class="who"><b data-user-name>Loading…</b><span data-user-role></span></span>
+            </a>
+          </div>
+        </aside>
+
+        <header class="topbar">
+          <a class="mobile-brand" href="/" aria-label="Dashboard"><span class="brand-mark">KS</span></a>
+          <div class="title">{title}</div>
+          <slot name="actions" />
+          <a class="mobile-me" href="/me" aria-label="My profile" aria-current={cur('me')}><span class="avatar" data-initials>··</span></a>
+        </header>
+
+        <main class="main" id="main">
+          <slot />
+        </main>
+
+        <nav class="tabbar" aria-label="Main">
+          <a href="/" aria-current={cur('home')}><Icon name="home" />Home</a>
+          <a href="/leads" aria-current={cur('leads')}><Icon name="funnel" />Leads</a>
+          <a href="/work" aria-current={cur('work')}><Icon name="briefcase" />Work</a>
+          <a href="/gst-notices" aria-current={nav === 'gst' || nav === 'it' ? 'page' : undefined}><Icon name="file" />Notices</a>
+          <a href="/clients" aria-current={cur('clients')}><Icon name="clients" />Clients</a>
+        </nav>
+      </div>
+    )}
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <script>
+      import '../lib/boot';
+    </script>
+  </body>
+</html>

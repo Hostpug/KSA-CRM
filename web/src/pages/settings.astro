@@ -1,0 +1,196 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+---
+<Layout title="Settings" nav="settings" roles="owner">
+  <div class="page-head"><p class="muted">Only the Owner can change these.</p></div>
+
+  <div class="grid two">
+    <section class="card reveal">
+      <div class="card-head"><h2>Firm details</h2></div>
+      <div class="card-body">
+        <form id="firmForm" novalidate>
+          <div class="form-grid cols-2">
+            <label class="field span-2"><span>Firm name <em>*</em></span><input name="firm_name" maxlength="120" required /></label>
+            <label class="field span-2"><span>Tagline</span><input name="firm_tagline" maxlength="120" placeholder="Chartered Accountants" /></label>
+            <label class="field"><span>Email</span><input name="firm_email" type="email" maxlength="190" /></label>
+            <label class="field"><span>Phone</span><input name="firm_phone" type="tel" maxlength="20" /></label>
+            <label class="field span-2"><span>GSTIN</span><input name="firm_gstin" class="mono" maxlength="15" autocapitalize="characters" /></label>
+            <label class="field span-2"><span>Address</span><textarea name="firm_address" rows="3" maxlength="500"></textarea></label>
+          </div>
+          <div class="row actions"><span class="spacer"></span><button class="btn primary" type="submit" id="firmSave">Save changes</button></div>
+        </form>
+      </div>
+    </section>
+
+    <div class="stack">
+      <section class="card card-pad reveal soon">
+        <div class="row"><span class="ic"><Icon name="sparkle" /></span><h2>Zoho Books</h2><span class="badge amber">Phase 3</span></div>
+        <p class="muted small">Connect Zoho Books once here to raise invoices and record payments from the CRM.</p>
+      </section>
+      <section class="card card-pad reveal soon">
+        <div class="row"><span class="ic"><Icon name="mail" /></span><h2>Email &amp; reminders</h2><span class="badge amber">Phase 4</span></div>
+        <p class="muted small">Mailbox for GST due-date reminders to staff and the partner's daily summary.</p>
+      </section>
+    </div>
+  </div>
+
+  <section class="card reveal svc-card">
+    <div class="card-head">
+      <div>
+        <h2>Services</h2>
+        <p class="muted small">Categories and services offered when creating a lead or task. Removing one doesn't change existing work.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="ced-list" id="cedList"><div class="skel line"></div><div class="skel line"></div></div>
+      <div class="row ced-foot">
+        <button class="btn" type="button" id="cedAdd"><Icon name="plus" />Add category</button>
+        <span class="spacer"></span>
+        <span class="muted small" id="cedState"></span>
+        <button class="btn primary" type="button" id="cedSave">Save services</button>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .actions { margin-top: 18px; }
+  .soon .row { margin-bottom: 6px; }
+  .soon h2 { flex: 1; }
+  .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); }
+  .ic :global(svg) { width: 18px; height: 18px; }
+  .grid.two > .stack > :nth-child(2) { animation-delay: 80ms; }
+</style>
+
+<style is:global>
+  .svc-card { margin-top: 16px; }
+  .ced-list { display: grid; gap: 12px; }
+  .ced { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 14px; animation: fade-up .3s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
+  .ced-head { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .ced-name { flex: 1; min-width: 0; font: inherit; font-weight: 700; font-size: 15.5px; border: 1px solid transparent; border-radius: 9px; padding: 6px 8px; margin-left: -8px; background: transparent; color: var(--text); }
+  .ced-name:hover { border-color: var(--line); }
+  .ced-name:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); background: var(--surface); }
+  .ced-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .ced-head .btn.icon { width: 34px; min-height: 34px; color: var(--muted); }
+  .ced-head .btn.icon:hover { color: var(--danger); }
+  .ced-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .ced-chip { display: inline-flex; align-items: center; gap: 2px; padding: 4px 4px 4px 11px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; animation: pop .25s var(--ease-out); }
+  .ced-chip button { border: 0; background: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); cursor: pointer; }
+  .ced-chip button:hover { background: var(--danger-soft); color: var(--danger); }
+  .ced-chip svg { width: 13px; height: 13px; }
+  .ced-add { font: inherit; font-size: 13.5px; border: 1px dashed var(--line); border-radius: 999px; padding: 5px 12px; min-width: 170px; background: transparent; color: var(--text); }
+  .ced-add:focus { outline: none; border-style: solid; border-color: var(--accent); }
+  .ced-foot { margin-top: 14px; gap: 10px; flex-wrap: wrap; }
+  .ced.removing { animation: fade-out .2s forwards; }
+</style>
+
+<script>
+  import { ready as readyCat } from '../lib/boot';
+  import { api as apiCat } from '../lib/api';
+  import { esc, icon, toast, toastError } from '../lib/ui';
+
+  type Cat = { name: string; services: string[] };
+  let cats: Cat[] = [];
+  let changed = false;
+  const list = document.getElementById('cedList')!;
+  const state = document.getElementById('cedState')!;
+  const saveBtn = document.getElementById('cedSave') as HTMLButtonElement;
+
+  const mark = (v = true) => { changed = v; state.textContent = v ? 'Unsaved changes' : ''; };
+
+  function render(focusAdd = -1) {
+    list.innerHTML = cats.map((c, i) => `
+      <div class="ced" data-c="${i}">
+        <div class="ced-head">
+          <input class="ced-name" value="${esc(c.name)}" maxlength="40" aria-label="Category name" placeholder="Category name" />
+          <span class="ced-count">${c.services.length} service${c.services.length === 1 ? '' : 's'}</span>
+          <button class="btn ghost icon" type="button" data-del aria-label="Remove category ${esc(c.name)}">${icon('close')}</button>
+        </div>
+        <div class="ced-chips">
+          ${c.services.map((s, j) => `<span class="ced-chip">${esc(s)}<button type="button" data-rm="${j}" aria-label="Remove ${esc(s)}">${icon('close')}</button></span>`).join('')}
+          <input class="ced-add" maxlength="120" placeholder="+ Add service, press Enter" aria-label="Add a service to ${esc(c.name)}" />
+        </div>
+      </div>`).join('') || '<p class="muted">No categories. Add one below.</p>';
+    Array.from(list.children).forEach((el, i) => (el as HTMLElement).style.setProperty('--i', String(i)));
+    if (focusAdd >= 0) (list.querySelector(`[data-c="${focusAdd}"] .ced-add`) as HTMLInputElement | null)?.focus();
+  }
+
+  const idx = (el: Element) => Number((el.closest('[data-c]') as HTMLElement).dataset.c);
+
+  list.addEventListener('input', (e) => {
+    const t = e.target as HTMLInputElement;
+    if (t.classList.contains('ced-name')) { cats[idx(t)].name = t.value; mark(); }
+  });
+  list.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLInputElement;
+    if (!t.classList.contains('ced-add') || e.key !== 'Enter') return;
+    e.preventDefault();
+    const v = t.value.trim().replace(/\s+/g, ' ');
+    if (!v) return;
+    const c = cats[idx(t)];
+    if (c.services.some((s) => s.toLowerCase() === v.toLowerCase())) { toast(`"${v}" is already in ${c.name}`, 'error'); return; }
+    c.services.push(v);
+    mark();
+    render(idx(t));
+  });
+  list.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const rm = t.closest<HTMLElement>('[data-rm]');
+    if (rm) { const i = idx(rm); cats[i].services.splice(Number(rm.dataset.rm), 1); mark(); render(); return; }
+    const del = t.closest('[data-del]');
+    if (del) {
+      const i = idx(del);
+      const c = cats[i];
+      if (c.services.length && !confirm(`Remove the category "${c.name}" and its ${c.services.length} services?`)) return;
+      cats.splice(i, 1); mark(); render();
+    }
+  });
+  document.getElementById('cedAdd')!.addEventListener('click', () => {
+    cats.push({ name: '', services: [] });
+    mark();
+    render();
+    (list.querySelector(`[data-c="${cats.length - 1}"] .ced-name`) as HTMLInputElement | null)?.focus();
+  });
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.classList.add('loading');
+    try {
+      // Fold in a service typed but not yet added with Enter.
+      list.querySelectorAll<HTMLInputElement>('.ced-add').forEach((i) => { const v = i.value.trim(); if (v) cats[idx(i)].services.push(v); });
+      const res = await apiCat('/settings/services', { method: 'PUT', body: { categories: cats } });
+      cats = res.categories;
+      mark(false);
+      render();
+      toast('Services saved');
+    } catch (err) { toastError(err); } finally { saveBtn.classList.remove('loading'); }
+  });
+  window.addEventListener('beforeunload', (e) => { if (changed) e.preventDefault(); });
+
+  readyCat.then(async () => {
+    try { cats = (await apiCat('/settings/services')).categories; render(); } catch (err) { toastError(err); }
+  });
+</script>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { fillForm, readForm, submitting, toast, toastError } from '../lib/ui';
+
+  const form = document.getElementById('firmForm') as HTMLFormElement;
+  const gst = form.elements.namedItem('firm_gstin') as HTMLInputElement;
+  gst.addEventListener('input', () => { gst.value = gst.value.toUpperCase().replace(/\s/g, ''); });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const res = await submitting(form, document.getElementById('firmSave') as HTMLButtonElement, () =>
+      api('/settings', { method: 'PUT', body: readForm(form) }));
+    if (!res) return;
+    try { sessionStorage.removeItem('ksa.me'); } catch { /* ignore */ }
+    document.querySelectorAll('[data-firm]').forEach((el) => { el.textContent = res.settings.firm_name; });
+    toast('Settings saved');
+  });
+
+  ready.then(async () => {
+    try { fillForm(form, (await api('/settings')).settings); } catch (err) { toastError(err); }
+  });
+</script>

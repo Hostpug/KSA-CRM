@@ -1,0 +1,93 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Activity log" nav="activity" roles="owner admin">
+  <div class="page-head">
+    <p class="muted">Every change and sign-in, newest first. Times are in IST.</p>
+    <div class="segmented" id="filter" role="group" aria-label="Filter">
+      <button type="button" data-value="" aria-pressed="true">All</button>
+      <button type="button" data-value="client" aria-pressed="false">Clients</button>
+      <button type="button" data-value="employee" aria-pressed="false">Team</button>
+      <button type="button" data-value="auth" aria-pressed="false">Sign-ins</button>
+    </div>
+  </div>
+
+  <section class="card">
+    <ul class="list" id="log"></ul>
+    <div class="more" id="moreWrap" hidden><button class="btn" id="more" type="button">Load older</button></div>
+  </section>
+</Layout>
+
+<style is:global>
+  .entry { align-items: flex-start; }
+  .entry .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .entry .dot.auth { background: var(--info); box-shadow: 0 0 0 4px var(--info-soft); }
+  .entry .dot.warn { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); }
+  .entry .t { white-space: normal; }
+  .changes { margin-top: 6px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+  .changes b { color: var(--text); font-weight: 600; }
+  .changes s { opacity: .7; }
+  .when { white-space: nowrap; font-size: 12.5px; color: var(--muted); }
+  .more { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--line); }
+</style>
+
+<script>
+  import { ready } from '../lib/boot';
+  import { api } from '../lib/api';
+  import { esc, dateTime, segmented, skeletonRows, emptyState, toastError } from '../lib/ui';
+
+  const log = document.getElementById('log')!;
+  const moreWrap = document.getElementById('moreWrap')!;
+  let filter = '';
+  let next: number | null = null;
+
+  const LABEL: Record<string, string> = {
+    name: 'Name', type: 'Type', pan: 'PAN', gstin: 'GSTIN', contact_person: 'Contact', email: 'Email', mobile: 'Mobile',
+    address: 'Address', city: 'City', state: 'State', pincode: 'PIN', notes: 'Notes', assigned_to: 'Handled by', active: 'Active',
+    role: 'Role', designation: 'Designation', date_joined: 'Joined', dob: 'DOB', emergency_name: 'Emergency name',
+    emergency_phone: 'Emergency no.', firm_name: 'Firm name', firm_tagline: 'Tagline', firm_email: 'Firm email',
+    firm_phone: 'Firm phone', firm_address: 'Firm address', firm_gstin: 'Firm GSTIN',
+  };
+  const short = (v: unknown) => { const s = v == null || v === '' ? '—' : String(v); return s.length > 60 ? s.slice(0, 57) + '…' : s; };
+
+  function row(a: any, i: number) {
+    const kind = a.action.startsWith('auth.') ? (a.action === 'auth.locked' ? 'warn' : 'auth') : a.action.includes('deactivated') ? 'warn' : '';
+    const changes = a.detail && typeof a.detail === 'object' && !Array.isArray(a.detail)
+      ? Object.entries(a.detail).filter(([, v]) => Array.isArray(v)).slice(0, 8)
+          .map(([k, v]: [string, any]) => `<span><b>${esc(LABEL[k] || k)}:</b> <s>${esc(short(v[0]))}</s> → ${esc(short(v[1]))}</span>`).join('')
+      : '';
+    const link = a.entity === 'client' && a.entity_id ? `/client?id=${encodeURIComponent(a.entity_id)}`
+      : a.entity === 'employee' && a.entity_id ? `/member?id=${encodeURIComponent(a.entity_id)}`
+      : a.entity === 'engagement' && a.entity_id ? `/engagement?id=${encodeURIComponent(a.entity_id)}`
+      : a.entity === 'notice' && a.entity_id ? `/notice?id=${encodeURIComponent(a.entity_id)}` : '';
+    return `<li class="list-item entry reveal" data-i="${i}">
+      <span class="dot ${kind}"></span>
+      <span class="main-col">
+        <span class="t">${link ? `<a href="${link}">${esc(a.summary || a.action)}</a>` : esc(a.summary || a.action)}</span>
+        <span class="s">${esc(a.actor_name || 'System')}${a.ip ? ` · ${esc(a.ip)}` : ''}</span>
+        ${changes ? `<span class="changes">${changes}</span>` : ''}
+      </span>
+      <span class="when">${esc(dateTime(a.at))}</span>
+    </li>`;
+  }
+
+  async function load(append = false) {
+    if (!append) { log.innerHTML = skeletonRows(6); next = null; }
+    const qs = new URLSearchParams();
+    if (filter === 'auth') qs.set('kind', 'auth'); else if (filter) qs.set('entity', filter);
+    if (append && next) qs.set('before', String(next));
+    try {
+      const d = await api(`/activity?${qs}`);
+      if (!append) log.innerHTML = '';
+      log.insertAdjacentHTML('beforeend', d.items.map(row).join(''));
+      log.querySelectorAll<HTMLElement>('[data-i]').forEach((el) => { el.style.setProperty('--i', String(Math.min(Number(el.dataset.i), 12))); el.removeAttribute('data-i'); });
+      if (!log.children.length) log.innerHTML = `<li>${emptyState('activity', 'No activity yet')}</li>`;
+      next = d.next;
+      moreWrap.hidden = !next;
+    } catch (err) { toastError(err); }
+  }
+
+  segmented(document.getElementById('filter')!, (v) => { filter = v; load(); });
+  document.getElementById('more')!.addEventListener('click', () => load(true));
+  ready.then(() => load());
+</script>

@@ -1,0 +1,28 @@
+{
+  "name": "ksa-practice-crm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Practice CRM for Karthik S & Associates, Chartered Accountants",
+  "main": "app.js",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "dev": "node --watch app.js",
+    "dev:web": "astro dev --root web",
+    "build": "astro build --root web",
+    "start": "node app.js",
+    "migrate": "node server/cli.js migrate",
+    "create-owner": "node server/cli.js create-owner",
+    "icons": "node scripts/make-icons.js",
+    "vault-key": "node -e \"console.log('VAULT_KEY=' + require('./server/vault').newKey())\""
+  },
+  "dependencies": {
+    "express": "4.22.3",
+    "mysql2": "3.24.6"
+  },
+  "devDependencies": {
+    "@fontsource-variable/public-sans": "5.3.0",
+    "astro": "5.18.2"
+  }
+}

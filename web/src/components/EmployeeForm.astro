@@ -1,0 +1,55 @@
+---
+import Icon from './Icon.astro';
+---
+<dialog class="sheet" id="empSheet" aria-labelledby="empSheetTitle">
+  <form id="empForm" novalidate>
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="empSheetTitle">Add employee</h2>
+      <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-grid cols-2">
+        <label class="field span-2"><span>Full name <em>*</em></span><input name="name" maxlength="120" required autocomplete="off" /></label>
+        <label class="field span-2"><span>Office email (used to sign in) <em>*</em></span><input name="email" type="email" inputmode="email" maxlength="190" required autocomplete="off" /></label>
+        <label class="field"><span>Role <em>*</em></span>
+          <select name="role">
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+            <option value="owner" data-owner-only>Owner</option>
+          </select>
+          <span class="hint">Only Owner and Admin can see billing &amp; payments.</span>
+        </label>
+        <label class="field"><span>Designation</span><input name="designation" maxlength="80" placeholder="e.g. Audit Assistant" data-suggest="designations" /></label>
+        <label class="field"><span>Mobile</span><input name="mobile" type="tel" inputmode="tel" maxlength="20" /></label>
+        <label class="field"><span>Date of joining</span><input name="date_joined" type="date" /></label>
+
+        <div class="form-section span-2">Personal</div>
+        <label class="field"><span>Date of birth</span><input name="dob" type="date" /></label>
+        <span></span>
+        <label class="field span-2"><span>Address</span><textarea name="address" maxlength="500" rows="2"></textarea></label>
+        <label class="field"><span>Emergency contact name</span><input name="emergency_name" maxlength="120" /></label>
+        <label class="field"><span>Emergency contact number</span><input name="emergency_phone" type="tel" inputmode="tel" maxlength="20" /></label>
+        <label class="check span-2" data-edit-only hidden><input type="checkbox" name="active" /> Active (can sign in)</label>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="empSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="sheet narrow" id="pwSheet" aria-labelledby="pwSheetTitle">
+  <div class="sheet-grip"></div>
+  <div class="sheet-head">
+    <h2 id="pwSheetTitle">Temporary password</h2>
+    <button type="button" class="btn ghost icon" data-close aria-label="Close"><Icon name="close" /></button>
+  </div>
+  <div class="sheet-body stack">
+    <p id="pwIntro"></p>
+    <div class="secret"><span id="pwValue"></span><button class="btn ghost icon" type="button" id="pwCopy" aria-label="Copy password"><Icon name="copy" /></button></div>
+    <div class="banner info"><Icon name="info" /><span>Share it privately. It is shown only once, and they must set their own password at first sign-in.</span></div>
+  </div>
+  <div class="sheet-foot"><button type="button" class="btn primary" data-close>Done</button></div>
+</dialog>
