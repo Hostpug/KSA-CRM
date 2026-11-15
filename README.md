@@ -95,6 +95,12 @@ For live front-end editing, run `npm run dev` and `npm run dev:web` together. Th
 
 The database tables are created and upgraded automatically when the app starts.
 
+## Firm logo and colours
+
+The theme uses CA blue for the brand (sidebar, headings) and CA green for actions and progress. The colours are defined in `web/src/styles/global.css` (`--brand`, `--accent`).
+
+To show the official CA India logo, place the file issued by ICAI in `web/public/brand/` as `logo.svg` or `logo.png`, then run `npm run build`. Until then a "KS" monogram is shown.
+
 ## Password vault key
 
 Client portal passwords are encrypted with AES-256-GCM using `VAULT_KEY`, which is kept outside the database.

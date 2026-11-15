@@ -5,27 +5,30 @@
   --font: 'Public Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SFMono-Regular', Consolas, monospace;
 
-  --bg: #f4f6f5;
+  /* CA blue for the brand (sidebar, headings), CA green for actions and progress. */
+  --bg: #f3f6f9;
   --surface: #ffffff;
-  --surface-2: #eef2f1;
-  --line: #dde4e2;
-  --text: #13201f;
-  --muted: #5d6c6a;
-  --brand: #10343a;
-  --brand-2: #174a52;
-  --accent: #126652;
-  --accent-soft: #e2f1ec;
-  --accent-text: #0c5443;
+  --surface-2: #edf2f6;
+  --line: #dbe3eb;
+  --text: #0f1f2e;
+  --muted: #5a6b7b;
+  --brand: #0b3556;
+  --brand-2: #0f4a74;
+  --accent: #1b7f45;
+  --accent-soft: #e3f3e9;
+  --accent-text: #146637;
   --on-accent: #ffffff;
+  --blue: #0d5c91;
+  --blue-soft: #e5eff8;
   --danger: #b42318;
   --danger-soft: #fdecea;
   --warn: #9a5b00;
   --warn-soft: #fff4dc;
   --info-soft: #e7f0fb;
   --info: #1d5aa8;
-  --shadow-sm: 0 1px 2px rgb(16 52 58 / .06);
-  --shadow: 0 1px 2px rgb(16 52 58 / .05), 0 6px 20px rgb(16 52 58 / .07);
-  --shadow-lg: 0 24px 60px rgb(8 28 31 / .22);
+  --shadow-sm: 0 1px 2px rgb(11 53 86 / .06);
+  --shadow: 0 1px 2px rgb(11 53 86 / .05), 0 6px 20px rgb(11 53 86 / .07);
+  --shadow-lg: 0 24px 60px rgb(6 26 43 / .22);
   --radius: 14px;
   --radius-sm: 10px;
   --ease: cubic-bezier(.2, .8, .2, 1);
@@ -37,18 +40,20 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0c1413;
-    --surface: #131d1c;
-    --surface-2: #1a2725;
-    --line: #263533;
-    --text: #e6eeec;
-    --muted: #93a5a2;
-    --brand: #0a2226;
-    --brand-2: #12343a;
-    --accent: #3fb391;
-    --accent-soft: #15322b;
-    --accent-text: #7fd8bb;
-    --on-accent: #06201a;
+    --bg: #0a121b;
+    --surface: #111c27;
+    --surface-2: #172532;
+    --line: #23344a;
+    --text: #e5edf5;
+    --muted: #93a4b6;
+    --brand: #071a2b;
+    --brand-2: #0c2a44;
+    --accent: #4cbf7c;
+    --accent-soft: #12301f;
+    --accent-text: #8edcaa;
+    --on-accent: #062012;
+    --blue: #7db6e8;
+    --blue-soft: #10263b;
     --danger: #ff8a7a;
     --danger-soft: #3a1714;
     --warn: #f3bd5c;
@@ -104,34 +109,34 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .shell { min-height: 100dvh; }
 .sidebar {
   position: fixed; inset: 0 auto 0 0; width: var(--sidebar-w);
-  background: var(--brand); color: #d7e6e3;
+  background: linear-gradient(180deg, var(--brand) 0%, #0a2d4a 100%); color: #d6e3ef;
   display: none; flex-direction: column; padding: 20px 14px; z-index: 20;
 }
 .brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px 22px; color: #fff; }
 .brand-mark {
   width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none;
-  background: linear-gradient(140deg, #1f8a6c, #126652); color: #fff; font-weight: 800; font-size: 15px;
+  background: linear-gradient(140deg, #2a9a5a, #1b7f45); color: #fff; font-weight: 800; font-size: 15px;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / .15);
 }
 .brand-name { font-weight: 700; font-size: 15px; line-height: 1.2; }
-.brand-sub { font-size: 12px; color: #9fbcb7; }
+.brand-sub { font-size: 12px; color: #9db6cc; }
 .nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
 .nav a {
   position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
-  color: #cfe0dd; font-weight: 500; text-decoration: none; transition: background .2s var(--ease), color .2s var(--ease);
+  color: #cddbe8; font-weight: 500; text-decoration: none; transition: background .2s var(--ease), color .2s var(--ease);
 }
 .nav a:hover { background: rgb(255 255 255 / .06); color: #fff; }
 .nav a[aria-current='page'] { background: rgb(255 255 255 / .1); color: #fff; }
 .nav a[aria-current='page']::before {
   content: ''; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0;
-  background: #4fd1a8; animation: grow .35s var(--ease-out);
+  background: #5cc98a; animation: grow .35s var(--ease-out);
 }
 .nav svg { width: 19px; height: 19px; flex: none; opacity: .9; }
-.nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7fa19b; padding: 16px 12px 6px; }
+.nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7f9ab3; padding: 16px 12px 6px; }
 .sidebar-foot { margin-top: auto; }
 .user-chip {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border-radius: 12px;
-  background: rgb(255 255 255 / .06); border: 0; color: #e8f2f0; cursor: pointer; text-align: left;
+  background: rgb(255 255 255 / .06); border: 0; color: #e8f0f7; cursor: pointer; text-align: left;
   transition: background .2s var(--ease);
 }
 .user-chip:hover { background: rgb(255 255 255 / .1); }
@@ -143,7 +148,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none;
   background: var(--accent-soft); color: var(--accent-text); font-weight: 700; font-size: 13px; letter-spacing: .02em;
 }
-.sidebar .avatar { background: #1f5e57; color: #e9fff8; }
+.sidebar .avatar { background: #1b7f45; color: #f2fff7; }
 .avatar.lg { width: 64px; height: 64px; font-size: 22px; }
 
 .topbar {
@@ -588,3 +593,9 @@ table.items tr.total td { border-bottom: 0; font-weight: 750; font-size: 16px; }
 /* The client list must sit above the sticky step footer / tab bar, and scroll fully into view. */
 .picker-list { z-index: 30; scroll-margin-bottom: calc(var(--tabbar-h) + 90px); scroll-margin-top: 80px; }
 @media (min-width: 960px) { .picker-list { scroll-margin-bottom: 90px; } }
+
+/* Official logo (web/public/brand/logo.png or .svg). Shown on a white tile so the colours stay true on the dark sidebar. */
+.brand-logo { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 4px; border-radius: 11px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / .15); }
+.brand-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.topbar .mobile-brand .brand-logo { width: 34px; height: 34px; padding: 3px; border-radius: 9px; }
+.brand-logo.big { width: 72px; height: 72px; padding: 8px; border-radius: 18px; }

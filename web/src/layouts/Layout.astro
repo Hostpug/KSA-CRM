@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import Icon from '../components/Icon.astro';
+import BrandMark from '../components/BrandMark.astro';
 
 interface Props {
   title: string;
@@ -20,7 +21,7 @@ const cur = (k: string) => (nav === k ? 'page' : undefined);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#10343a" />
+    <meta name="theme-color" content="#0b3556" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -38,7 +39,7 @@ const cur = (k: string) => (nav === k ? 'page' : undefined);
       <div class="shell">
         <aside class="sidebar">
           <a class="brand" href="/">
-            <span class="brand-mark">KS</span>
+            <BrandMark />
             <span><span class="brand-name" data-firm>Karthik S &amp; Associates</span><br /><span class="brand-sub">Practice CRM</span></span>
           </a>
           <nav class="nav" aria-label="Main">
@@ -64,7 +65,7 @@ const cur = (k: string) => (nav === k ? 'page' : undefined);
         </aside>
 
         <header class="topbar">
-          <a class="mobile-brand" href="/" aria-label="Dashboard"><span class="brand-mark">KS</span></a>
+          <a class="mobile-brand" href="/" aria-label="Dashboard"><BrandMark /></a>
           <div class="title">{title}</div>
           <slot name="actions" />
           <a class="mobile-me" href="/me" aria-label="My profile" aria-current={cur('me')}><span class="avatar" data-initials>··</span></a>

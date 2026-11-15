@@ -34,8 +34,8 @@ function inRoundRect(x, y, r) {
 function render(size, { rounded }) {
   const SS = 4; // supersampling
   const px = Buffer.alloc(size * size * 4);
-  const top = [0x1f, 0x8a, 0x6c];
-  const bottom = [0x10, 0x34, 0x3a];
+  const top = [0x1b, 0x7f, 0x45];
+  const bottom = [0x0b, 0x35, 0x56];
   for (let py = 0; py < size; py++) {
     for (let pxl = 0; pxl < size; pxl++) {
       let bg = 0;

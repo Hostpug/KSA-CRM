@@ -1,0 +1,13 @@
+---
+// Firm mark: the official logo if the firm has supplied one in web/public/brand/
+// (logo.svg or logo.png), otherwise the "KS" monogram.
+import fs from 'node:fs';
+import path from 'node:path';
+interface Props { size?: 'big' | '' }
+const { size = '' } = Astro.props;
+const dir = path.resolve(process.cwd(), 'web/public/brand');
+const alt = fs.existsSync(path.join(dir, 'logo.svg')) ? 'logo.svg' : fs.existsSync(path.join(dir, 'logo.png')) ? 'logo.png' : null;
+---
+{alt
+  ? <span class:list={['brand-logo', size]}><img src={`/brand/${alt}`} alt="CA India" width="64" height="64" /></span>
+  : <span class:list={['brand-mark', size]}>KS</span>}
